@@ -1,474 +1,1806 @@
-import { useEffect, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+
 import './AdminProductEditor.css'
 
+import {
+  uploadImageToCloudinary,
+  uploadVideoToCloudinary,
+} from '../utils/cloudinary'
+
+
+/*
+=====================================================
+CATEGORIES
+=====================================================
+*/
+
+const CATEGORIES = [
+  'Atta, Rice & Dal',
+  'Oil & Ghee',
+  'Masala & Spices',
+  'Biscuits & Bakery',
+  'Snacks',
+  'Noodles & Pasta',
+  'Tea & Coffee',
+  'Dairy & Breakfast',
+  'Personal Care',
+  'Home Care',
+  'Baby Care',
+  'Puja & Household',
+  'Other',
+]
+
+
+/*
+=====================================================
+HELPERS
+=====================================================
+*/
+
 function cloneProduct(product) {
-  return JSON.parse(JSON.stringify(product))
+  return JSON.parse(
+    JSON.stringify(
+      product || {}
+    )
+  )
 }
 
-function createImagePreview(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
 
-    reader.onload = () => {
-      resolve(reader.result)
-    }
+function safeProduct(product) {
+  const value =
+    product || {}
 
-    reader.onerror = () => {
-      reject(new Error('Image read failed'))
-    }
 
-    reader.readAsDataURL(file)
-  })
+  return {
+    ...value,
+
+    name:
+      value.name ||
+      value.productName ||
+      value.itemName ||
+      '',
+
+    images:
+      Array.isArray(
+        value.images
+      )
+        ? value.images.filter(
+            Boolean
+          )
+        : [],
+
+    video:
+      value.video || '',
+
+    isActive:
+      value.isActive !==
+      false,
+
+    isLive:
+      value.isLive ===
+      true,
+
+    isFeatured:
+      value.isFeatured ===
+      true,
+
+    isBestSeller:
+      value.isBestSeller ===
+      true,
+
+    isNewArrival:
+      value.isNewArrival ===
+      true,
+
+    isOffer:
+      value.isOffer ===
+      true,
+  }
 }
 
-function createVideoPreview(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
 
-    reader.onload = () => {
-      resolve(reader.result)
-    }
-
-    reader.onerror = () => {
-      reject(new Error('Video read failed'))
-    }
-
-    reader.readAsDataURL(file)
-  })
+function createLocalPreview(
+  file
+) {
+  return URL.createObjectURL(
+    file
+  )
 }
 
-export default function AdminProductEditor({
+
+function isImageFile(
+  file
+) {
+  return Boolean(
+    file?.type?.startsWith(
+      'image/'
+    )
+  )
+}
+
+
+function isVideoFile(
+  file
+) {
+  return Boolean(
+    file?.type?.startsWith(
+      'video/'
+    )
+  )
+}
+
+
+function normalizeImages(
+  images
+) {
+  return Array.isArray(
+    images
+  )
+    ? images.filter(Boolean)
+    : []
+}
+
+
+/*
+=====================================================
+MAIN COMPONENT
+=====================================================
+*/
+
+export default function
+AdminProductEditor({
   product,
   onClose,
   onSave,
 }) {
-  const [form, setForm] = useState(() =>
-    cloneProduct({
-      ...product,
-      images: Array.isArray(product.images)
-        ? product.images
-        : [],
-      video: product.video || '',
-    })
+
+  const initialProduct =
+    useMemo(
+      () =>
+        safeProduct(
+          product
+        ),
+      [product]
+    )
+
+
+  const [
+    form,
+    setForm,
+  ] = useState(
+    () =>
+      cloneProduct(
+        initialProduct
+      )
   )
 
-  const [history, setHistory] = useState(() => [
-    cloneProduct(product),
-  ])
 
-  const [historyIndex, setHistoryIndex] = useState(0)
+  const [
+    history,
+    setHistory,
+  ] = useState(
+    () => [
+      cloneProduct(
+        initialProduct
+      ),
+    ]
+  )
 
-  const [saving, setSaving] = useState(false)
-  const [mediaMessage, setMediaMessage] = useState('')
 
-  const updateField = (field, value) => {
-    setForm((current) => {
-      const next = {
-        ...current,
-        [field]: value,
-      }
+  const [
+    historyIndex,
+    setHistoryIndex,
+  ] = useState(0)
 
-      setHistory((currentHistory) => {
-        const nextHistory = currentHistory.slice(
-          0,
-          historyIndex + 1
-        )
 
-        nextHistory.push(cloneProduct(next))
+  const [
+    saving,
+    setSaving,
+  ] = useState(false)
 
-        return nextHistory
-      })
 
-      setHistoryIndex((currentIndex) => currentIndex + 1)
+  const [
+    mediaMessage,
+    setMediaMessage,
+  ] = useState('')
 
-      return next
-    })
-  }
 
-  const updateMultipleFields = (values) => {
-    setForm((current) => {
-      const next = {
-        ...current,
-        ...values,
-      }
+  const [
+    dragActive,
+    setDragActive,
+  ] = useState(false)
 
-      setHistory((currentHistory) => {
-        const nextHistory = currentHistory.slice(
-          0,
-          historyIndex + 1
-        )
 
-        nextHistory.push(cloneProduct(next))
+  const [
+    videoDragActive,
+    setVideoDragActive,
+  ] = useState(false)
 
-        return nextHistory
-      })
 
-      setHistoryIndex((currentIndex) => currentIndex + 1)
+  const [
+    uploading,
+    setUploading,
+  ] = useState({})
 
-      return next
-    })
-  }
 
-  const undo = () => {
-    if (historyIndex <= 0) {
-      return
-    }
+  const imageInputRef =
+    useRef(null)
 
-    const newIndex = historyIndex - 1
+  const videoInputRef =
+    useRef(null)
 
-    setHistoryIndex(newIndex)
-    setForm(cloneProduct(history[newIndex]))
-  }
+  const mountedRef =
+    useRef(true)
 
-  const redo = () => {
-    if (historyIndex >= history.length - 1) {
-      return
-    }
+  const uploadFilesRef =
+    useRef({})
 
-    const newIndex = historyIndex + 1
 
-    setHistoryIndex(newIndex)
-    setForm(cloneProduct(history[newIndex]))
-  }
+  /*
+  =====================================================
+  MOUNT
+  =====================================================
+  */
 
   useEffect(() => {
-    const handleKeyboard = (event) => {
-      const target = event.target
+    mountedRef.current =
+      true
 
-      const isTyping =
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement
-
-      const isUndo =
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLowerCase() === 'z'
-
-      const isRedo =
-        (event.ctrlKey || event.metaKey) &&
-        (
-          event.key.toLowerCase() === 'y' ||
-          (
-            event.shiftKey &&
-            event.key.toLowerCase() === 'z'
-          )
-        )
-
-      if (isUndo) {
-        event.preventDefault()
-        undo()
-      }
-
-      if (isRedo) {
-        event.preventDefault()
-        redo()
-      }
-
-      if (
-        isTyping &&
-        !event.ctrlKey &&
-        !event.metaKey
-      ) {
-        return
-      }
+    return () => {
+      mountedRef.current =
+        false
     }
+  }, [])
+
+
+  /*
+  =====================================================
+  RESET WHEN PRODUCT CHANGES
+  =====================================================
+  */
+
+  useEffect(() => {
+    const next =
+      safeProduct(
+        product
+      )
+
+    setForm(
+      cloneProduct(
+        next
+      )
+    )
+
+    setHistory([
+      cloneProduct(
+        next
+      ),
+    ])
+
+    setHistoryIndex(0)
+
+    setUploading({})
+
+    setMediaMessage('')
+
+    uploadFilesRef.current =
+      {}
+  }, [product])
+
+
+  /*
+  =====================================================
+  HISTORY
+  =====================================================
+  */
+
+  const pushHistory =
+    (next) => {
+      setHistory(
+        (current) => {
+          const trimmed =
+            current.slice(
+              0,
+              historyIndex + 1
+            )
+
+          trimmed.push(
+            cloneProduct(
+              next
+            )
+          )
+
+          return trimmed
+        }
+      )
+
+      setHistoryIndex(
+        (current) =>
+          current + 1
+      )
+    }
+
+
+  const updateField =
+    (
+      field,
+      value
+    ) => {
+      setForm(
+        (current) => {
+          const next = {
+            ...current,
+            [field]: value,
+          }
+
+          pushHistory(
+            next
+          )
+
+          return next
+        }
+      )
+    }
+
+
+  const updateMultipleFields =
+    (values) => {
+      setForm(
+        (current) => {
+          const next = {
+            ...current,
+            ...values,
+          }
+
+          pushHistory(
+            next
+          )
+
+          return next
+        }
+      )
+    }
+
+
+  const undo = () => {
+    if (
+      historyIndex <= 0
+    ) {
+      return
+    }
+
+
+    const nextIndex =
+      historyIndex - 1
+
+
+    setHistoryIndex(
+      nextIndex
+    )
+
+
+    setForm(
+      cloneProduct(
+        history[
+          nextIndex
+        ]
+      )
+    )
+
+
+    setMediaMessage(
+      'Undo applied.'
+    )
+  }
+
+
+  const redo = () => {
+    if (
+      historyIndex >=
+      history.length - 1
+    ) {
+      return
+    }
+
+
+    const nextIndex =
+      historyIndex + 1
+
+
+    setHistoryIndex(
+      nextIndex
+    )
+
+
+    setForm(
+      cloneProduct(
+        history[
+          nextIndex
+        ]
+      )
+    )
+
+
+    setMediaMessage(
+      'Redo applied.'
+    )
+  }
+
+
+  /*
+  =====================================================
+  KEYBOARD SHORTCUTS
+  =====================================================
+  */
+
+  useEffect(() => {
+
+    const handleKeyboard =
+      (event) => {
+
+        const key =
+          event.key.toLowerCase()
+
+
+        const modifier =
+          event.ctrlKey ||
+          event.metaKey
+
+
+        if (!modifier) {
+          return
+        }
+
+
+        if (
+          key === 'z' &&
+          !event.shiftKey
+        ) {
+          event.preventDefault()
+
+          undo()
+
+          return
+        }
+
+
+        if (
+          key === 'y' ||
+          (
+            key === 'z' &&
+            event.shiftKey
+          )
+        ) {
+          event.preventDefault()
+
+          redo()
+        }
+      }
+
 
     window.addEventListener(
       'keydown',
       handleKeyboard
     )
 
-    return () => {
+
+    return () =>
       window.removeEventListener(
         'keydown',
         handleKeyboard
       )
-    }
+
   })
 
-  const handleImages = async (event) => {
-    const files = Array.from(
-      event.target.files || []
-    )
 
-    event.target.value = ''
+  /*
+  =====================================================
+  REPLACE TEMP IMAGE WITH
+  PERMANENT CLOUDINARY URL
+  =====================================================
+  */
 
-    if (!files.length) {
-      return
+  const replaceImageUrl =
+    (
+      previewUrl,
+      permanentUrl
+    ) => {
+
+      setForm(
+        (current) => {
+
+          const images =
+            normalizeImages(
+              current.images
+            ).map(
+              (image) =>
+                image ===
+                previewUrl
+                  ? permanentUrl
+                  : image
+            )
+
+
+          return {
+            ...current,
+            images,
+          }
+        }
+      )
     }
 
-    setMediaMessage(
-      `${files.length} image${
-        files.length > 1 ? 's' : ''
-      } loading...`
-    )
 
-    try {
-      const validFiles = files.filter(
-        (file) =>
-          file.type.startsWith('image/')
+  /*
+  =====================================================
+  UPLOAD ONE IMAGE
+  =====================================================
+  */
+
+  const uploadOneImage =
+    async (
+      file,
+      previewUrl
+    ) => {
+
+      const key =
+        previewUrl
+
+
+      uploadFilesRef.current[
+        key
+      ] = file
+
+
+      setUploading(
+        (current) => ({
+          ...current,
+
+          [key]: {
+            type:
+              'image',
+
+            progress:
+              0,
+
+            status:
+              'preparing',
+          },
+        })
       )
 
-      const newImages = await Promise.all(
-        validFiles.map((file) =>
-          createImagePreview(file)
+
+      try {
+
+        const permanentUrl =
+          await uploadImageToCloudinary(
+            file,
+            {
+              onProgress:
+                (
+                  progress
+                ) => {
+
+                  if (
+                    !mountedRef.current
+                  ) {
+                    return
+                  }
+
+
+                  setUploading(
+                    (current) => ({
+                      ...current,
+
+                      [key]: {
+                        type:
+                          'image',
+
+                        progress,
+
+                        status:
+                          'uploading',
+                      },
+                    })
+                  )
+                },
+            }
+          )
+
+
+        replaceImageUrl(
+          previewUrl,
+          permanentUrl
         )
-      )
 
-      const images = [
-        ...(form.images || []),
-        ...newImages,
-      ]
 
-      updateField('images', images)
+        if (
+          mountedRef.current
+        ) {
 
-      setMediaMessage(
-        `${newImages.length} image${
-          newImages.length > 1 ? 's' : ''
-        } added successfully.`
-      )
-    } catch {
-      setMediaMessage(
-        'Image upload failed.'
-      )
-    }
-  }
+          setUploading(
+            (current) => {
 
-  const removeImage = (index) => {
-    const images = [
-      ...(form.images || []),
-    ]
+              const next =
+                {
+                  ...current,
+                }
 
-    images.splice(index, 1)
+              delete next[
+                key
+              ]
 
-    updateField('images', images)
+              return next
+            }
+          )
 
-    setMediaMessage('Image removed.')
-  }
 
-  const setMainImage = (index) => {
-    const images = [
-      ...(form.images || []),
-    ]
+          setMediaMessage(
+            'Image uploaded successfully.'
+          )
+        }
 
-    if (index <= 0) {
-      return
-    }
 
-    const [selected] = images.splice(
-      index,
-      1
-    )
+        URL.revokeObjectURL(
+          previewUrl
+        )
 
-    images.unshift(selected)
 
-    updateField('images', images)
+        delete uploadFilesRef
+          .current[
+            key
+          ]
 
-    setMediaMessage(
-      'Main image changed.'
-    )
-  }
+      } catch (
+        error
+      ) {
 
-  const moveImageLeft = (index) => {
-    if (index <= 0) {
-      return
-    }
+        if (
+          !mountedRef.current
+        ) {
+          return
+        }
 
-    const images = [
-      ...(form.images || []),
-    ]
 
-    const temp = images[index - 1]
+        setUploading(
+          (current) => ({
+            ...current,
 
-    images[index - 1] = images[index]
-    images[index] = temp
+            [key]: {
+              type:
+                'image',
 
-    updateField('images', images)
+              progress:
+                0,
 
-    setMediaMessage('Image order updated.')
-  }
+              status:
+                'error',
 
-  const moveImageRight = (index) => {
-    const images = [
-      ...(form.images || []),
-    ]
+              error:
+                error?.message ||
+                'Upload failed.',
+            },
+          })
+        )
 
-    if (index >= images.length - 1) {
-      return
+
+        setMediaMessage(
+          error?.message ||
+          'Image upload failed.'
+        )
+      }
     }
 
-    const temp = images[index + 1]
 
-    images[index + 1] = images[index]
-    images[index] = temp
+  /*
+  =====================================================
+  ADD IMAGE FILES
+  =====================================================
+  */
 
-    updateField('images', images)
+  const addImageFiles =
+    (files) => {
 
-    setMediaMessage('Image order updated.')
-  }
+      const validFiles =
+        Array.from(
+          files || []
+        ).filter(
+          isImageFile
+        )
 
-  const handleVideo = async (event) => {
-    const file = event.target.files?.[0]
 
-    event.target.value = ''
+      if (
+        !validFiles.length
+      ) {
 
-    if (!file) {
-      return
-    }
+        setMediaMessage(
+          'Please select valid JPG, PNG or WEBP image files.'
+        )
 
-    if (!file.type.startsWith('video/')) {
-      setMediaMessage(
-        'Please select a valid video file.'
-      )
-
-      return
-    }
-
-    try {
-      setMediaMessage('Video loading...')
-
-      const video =
-        await createVideoPreview(file)
-
-      updateField('video', video)
-
-      setMediaMessage(
-        'Video added successfully.'
-      )
-    } catch {
-      setMediaMessage(
-        'Video upload failed.'
-      )
-    }
-  }
-
-  const removeVideo = () => {
-    updateField('video', '')
-
-    setMediaMessage('Video removed.')
-  }
-
-  const handleSave = async () => {
-    if (!form.name?.trim()) {
-      setMediaMessage(
-        'Product name is required.'
-      )
-
-      return
-    }
-
-    setSaving(true)
-
-    try {
-      const finalProduct = {
-        ...form,
-
-        name: form.name.trim(),
-
-        images: Array.isArray(form.images)
-          ? form.images
-          : [],
-
-        isActive:
-          form.isActive !== false,
-
-        isLive:
-          form.isLive === true,
-
-        isFeatured:
-          form.isFeatured === true,
-
-        isBestSeller:
-          form.isBestSeller === true,
-
-        isNewArrival:
-          form.isNewArrival === true,
-
-        isOffer:
-          form.isOffer === true,
-
-        updatedAt:
-          new Date().toISOString(),
+        return
       }
 
-      onSave(finalProduct)
-    } finally {
-      setSaving(false)
+
+      const entries =
+        validFiles.map(
+          (file) => ({
+            file,
+
+            previewUrl:
+              createLocalPreview(
+                file
+              ),
+          })
+        )
+
+
+      setForm(
+        (current) => ({
+          ...current,
+
+          images: [
+            ...normalizeImages(
+              current.images
+            ),
+
+            ...entries.map(
+              (
+                item
+              ) =>
+                item.previewUrl
+            ),
+          ],
+        })
+      )
+
+
+      setMediaMessage(
+        `${entries.length} image${
+          entries.length >
+          1
+            ? 's'
+            : ''
+        } added. Uploading...`
+      )
+
+
+      entries.forEach(
+        ({
+          file,
+          previewUrl,
+        }) => {
+
+          uploadOneImage(
+            file,
+            previewUrl
+          )
+        }
+      )
     }
-  }
 
-  const imageCount = (
-    form.images || []
-  ).length
 
-  const hasImages = imageCount > 0
-  const hasVideo = Boolean(form.video)
+  /*
+  =====================================================
+  FILE INPUT
+  =====================================================
+  */
+
+  const handleImages =
+    (event) => {
+
+      const files =
+        Array.from(
+          event.target
+            .files || []
+        )
+
+
+      event.target.value =
+        ''
+
+
+      if (
+        files.length
+      ) {
+        addImageFiles(
+          files
+        )
+      }
+    }
+
+
+  /*
+  =====================================================
+  IMAGE DROP
+  =====================================================
+  */
+
+  const handleImageDrop =
+    (event) => {
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      setDragActive(
+        false
+      )
+
+
+      const files =
+        Array.from(
+          event.dataTransfer
+            .files || []
+        )
+
+
+      if (
+        files.length
+      ) {
+        addImageFiles(
+          files
+        )
+      }
+    }
+
+
+  const handleImageDragOver =
+    (event) => {
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      setDragActive(
+        true
+      )
+    }
+
+
+  const handleImageDragLeave =
+    (event) => {
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      setDragActive(
+        false
+      )
+    }
+
+
+  /*
+  =====================================================
+  RETRY IMAGE
+  =====================================================
+  */
+
+  const retryImage =
+    (image) => {
+
+      const file =
+        uploadFilesRef
+          .current[
+            image
+          ]
+
+
+      if (!file) {
+
+        setMediaMessage(
+          'Please select the image again to retry.'
+        )
+
+        return
+      }
+
+
+      uploadOneImage(
+        file,
+        image
+      )
+    }
+
+
+  /*
+  =====================================================
+  REMOVE IMAGE
+  =====================================================
+  */
+
+  const removeImage =
+    (index) => {
+
+      const images = [
+        ...normalizeImages(
+          form.images
+        ),
+      ]
+
+
+      const removed =
+        images[index]
+
+
+      images.splice(
+        index,
+        1
+      )
+
+
+      if (
+        removed?.startsWith(
+          'blob:'
+        )
+      ) {
+
+        URL.revokeObjectURL(
+          removed
+        )
+
+
+        delete uploadFilesRef
+          .current[
+            removed
+          ]
+
+
+        setUploading(
+          (current) => {
+
+            const next =
+              {
+                ...current,
+              }
+
+            delete next[
+              removed
+            ]
+
+            return next
+          }
+        )
+      }
+
+
+      updateField(
+        'images',
+        images
+      )
+
+
+      setMediaMessage(
+        'Image removed.'
+      )
+    }
+
+
+  /*
+  =====================================================
+  MAIN IMAGE
+  =====================================================
+  */
+
+  const setMainImage =
+    (index) => {
+
+      const images = [
+        ...normalizeImages(
+          form.images
+        ),
+      ]
+
+
+      if (
+        index <= 0 ||
+        index >=
+          images.length
+      ) {
+        return
+      }
+
+
+      const [
+        selected,
+      ] =
+        images.splice(
+          index,
+          1
+        )
+
+
+      images.unshift(
+        selected
+      )
+
+
+      updateField(
+        'images',
+        images
+      )
+
+
+      setMediaMessage(
+        'Main image changed.'
+      )
+    }
+
+
+  /*
+  =====================================================
+  MOVE IMAGE LEFT
+  =====================================================
+  */
+
+  const moveImageLeft =
+    (index) => {
+
+      if (
+        index <= 0
+      ) {
+        return
+      }
+
+
+      const images = [
+        ...normalizeImages(
+          form.images
+        ),
+      ]
+
+
+      ;[
+        images[
+          index - 1
+        ],
+        images[index],
+      ] = [
+        images[index],
+        images[
+          index - 1
+        ],
+      ]
+
+
+      updateField(
+        'images',
+        images
+      )
+
+
+      setMediaMessage(
+        'Image order updated.'
+      )
+    }
+
+
+  /*
+  =====================================================
+  MOVE IMAGE RIGHT
+  =====================================================
+  */
+
+  const moveImageRight =
+    (index) => {
+
+      const images = [
+        ...normalizeImages(
+          form.images
+        ),
+      ]
+
+
+      if (
+        index >=
+        images.length - 1
+      ) {
+        return
+      }
+
+
+      ;[
+        images[
+          index + 1
+        ],
+        images[index],
+      ] = [
+        images[index],
+        images[
+          index + 1
+        ],
+      ]
+
+
+      updateField(
+        'images',
+        images
+      )
+
+
+      setMediaMessage(
+        'Image order updated.'
+      )
+    }
+
+
+  /*
+  =====================================================
+  VIDEO
+  =====================================================
+  */
+
+  const addVideoFile =
+    async (
+      file
+    ) => {
+
+      if (
+        !isVideoFile(
+          file
+        )
+      ) {
+
+        setMediaMessage(
+          'Please select a valid MP4, WebM or MOV video.'
+        )
+
+        return
+      }
+
+
+      const previewUrl =
+        createLocalPreview(
+          file
+        )
+
+
+      const uploadKey =
+        `video:${previewUrl}`
+
+
+      const oldVideo =
+        form.video || ''
+
+
+      if (
+        oldVideo.startsWith(
+          'blob:'
+        )
+      ) {
+        URL.revokeObjectURL(
+          oldVideo
+        )
+      }
+
+
+      updateField(
+        'video',
+        previewUrl
+      )
+
+
+      uploadFilesRef
+        .current[
+          uploadKey
+        ] = file
+
+
+      setUploading(
+        (current) => ({
+          ...current,
+
+          [uploadKey]: {
+            type:
+              'video',
+
+            progress:
+              0,
+
+            status:
+              'uploading',
+          },
+        })
+      )
+
+
+      setMediaMessage(
+        'Video added. Uploading...'
+      )
+
+
+      try {
+
+        const permanentUrl =
+          await uploadVideoToCloudinary(
+            file,
+            {
+              onProgress:
+                (
+                  progress
+                ) => {
+
+                  if (
+                    !mountedRef.current
+                  ) {
+                    return
+                  }
+
+
+                  setUploading(
+                    (current) => ({
+                      ...current,
+
+                      [uploadKey]: {
+                        type:
+                          'video',
+
+                        progress,
+
+                        status:
+                          'uploading',
+                      },
+                    })
+                  )
+                },
+            }
+          )
+
+
+        if (
+          !mountedRef.current
+        ) {
+          return
+        }
+
+
+        setForm(
+          (current) => ({
+            ...current,
+
+            video:
+              current.video ===
+              previewUrl
+                ? permanentUrl
+                : current.video,
+          })
+        )
+
+
+        setUploading(
+          (current) => {
+
+            const next =
+              {
+                ...current,
+              }
+
+            delete next[
+              uploadKey
+            ]
+
+            return next
+          }
+        )
+
+
+        delete uploadFilesRef
+          .current[
+            uploadKey
+          ]
+
+
+        URL.revokeObjectURL(
+          previewUrl
+        )
+
+
+        setMediaMessage(
+          'Video uploaded successfully.'
+        )
+
+      } catch (
+        error
+      ) {
+
+        if (
+          !mountedRef.current
+        ) {
+          return
+        }
+
+
+        setUploading(
+          (current) => ({
+            ...current,
+
+            [uploadKey]: {
+              type:
+                'video',
+
+              progress:
+                0,
+
+              status:
+                'error',
+
+              error:
+                error?.message ||
+                'Video upload failed.',
+            },
+          })
+        )
+
+
+        setMediaMessage(
+          error?.message ||
+          'Video upload failed.'
+        )
+      }
+    }
+
+
+  const handleVideo =
+    (event) => {
+
+      const file =
+        event.target
+          .files?.[0]
+
+
+      event.target.value =
+        ''
+
+
+      if (file) {
+        addVideoFile(
+          file
+        )
+      }
+    }
+
+
+  const handleVideoDrop =
+    (event) => {
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      setVideoDragActive(
+        false
+      )
+
+
+      const file =
+        event.dataTransfer
+          .files?.[0]
+
+
+      if (file) {
+        addVideoFile(
+          file
+        )
+      }
+    }
+
+
+  const handleVideoDragOver =
+    (event) => {
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      setVideoDragActive(
+        true
+      )
+    }
+
+
+  const handleVideoDragLeave =
+    (event) => {
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      setVideoDragActive(
+        false
+      )
+    }
+
+
+  const removeVideo =
+    () => {
+
+      const oldVideo =
+        form.video || ''
+
+
+      if (
+        oldVideo.startsWith(
+          'blob:'
+        )
+      ) {
+        URL.revokeObjectURL(
+          oldVideo
+        )
+      }
+
+
+      updateField(
+        'video',
+        ''
+      )
+
+
+      setMediaMessage(
+        'Video removed.'
+      )
+    }
+
+
+  /*
+  =====================================================
+  UPLOAD STATUS
+  =====================================================
+  */
+
+  const pendingUploads =
+    Object.values(
+      uploading
+    ).filter(
+      (item) =>
+        item.status ===
+          'preparing' ||
+        item.status ===
+          'uploading'
+    )
+
+
+  const failedUploads =
+    Object.values(
+      uploading
+    ).filter(
+      (item) =>
+        item.status ===
+        'error'
+    )
+
+
+  /*
+  =====================================================
+  SAVE
+  =====================================================
+  */
+
+  const handleSave =
+    async () => {
+
+      if (
+        !form.name?.trim()
+      ) {
+
+        setMediaMessage(
+          'Product name is required.'
+        )
+
+        return
+      }
+
+
+      if (
+        pendingUploads.length >
+        0
+      ) {
+
+        setMediaMessage(
+          'Please wait for all media uploads to finish.'
+        )
+
+        return
+      }
+
+
+      if (
+        failedUploads.length >
+        0
+      ) {
+
+        setMediaMessage(
+          'One or more media uploads failed. Remove the failed item and upload it again.'
+        )
+
+        return
+      }
+
+
+      const images =
+        normalizeImages(
+          form.images
+        ).filter(
+          (image) =>
+            !image.startsWith(
+              'blob:'
+            )
+        )
+
+
+      const finalProduct =
+        {
+          ...form,
+
+          name:
+            form.name.trim(),
+
+          images,
+
+          isActive:
+            form.isActive !==
+            false,
+
+          isLive:
+            images.length >
+              0 &&
+            form.isLive ===
+              true,
+
+          isFeatured:
+            form.isFeatured ===
+            true,
+
+          isBestSeller:
+            form.isBestSeller ===
+            true,
+
+          isNewArrival:
+            form.isNewArrival ===
+            true,
+
+          isOffer:
+            form.isOffer ===
+            true,
+
+          category:
+            String(
+              form.category ||
+                ''
+            ).trim(),
+
+          updatedAt:
+            new Date()
+              .toISOString(),
+        }
+
+
+      setSaving(
+        true
+      )
+
+
+      try {
+
+        await onSave(
+          finalProduct
+        )
+
+      } catch (
+        error
+      ) {
+
+        console.error(
+          'Save failed:',
+          error
+        )
+
+
+        setMediaMessage(
+          error?.message ||
+          'Save failed.'
+        )
+
+      } finally {
+
+        if (
+          mountedRef.current
+        ) {
+          setSaving(
+            false
+          )
+        }
+      }
+    }
+
+
+  /*
+  =====================================================
+  CLEANUP
+  =====================================================
+  */
+
+  useEffect(() => {
+
+    return () => {
+
+      normalizeImages(
+        form.images
+      ).forEach(
+        (image) => {
+
+          if (
+            image.startsWith(
+              'blob:'
+            )
+          ) {
+            URL.revokeObjectURL(
+              image
+            )
+          }
+        }
+      )
+
+
+      if (
+        form.video?.startsWith(
+          'blob:'
+        )
+      ) {
+        URL.revokeObjectURL(
+          form.video
+        )
+      }
+    }
+
+  }, [])
+
+
+  /*
+  =====================================================
+  VALUES
+  =====================================================
+  */
+
+  const images =
+    normalizeImages(
+      form.images
+    )
+
+
+  const imageCount =
+    images.length
+
+
+  const hasImages =
+    imageCount > 0
+
+
+  const hasVideo =
+    Boolean(
+      form.video
+    )
+
+
+  /*
+  =====================================================
+  UI
+  =====================================================
+  */
 
   return (
     <div className="product-editor-overlay">
+
       <div className="product-editor">
+
+        {/* HEADER */}
+
         <header className="product-editor-header">
+
           <div>
+
             <span className="editor-label">
               PRODUCT EDITOR
             </span>
 
-            <h2>Edit Product</h2>
+            <h2>
+              {product?.id
+                ? 'Edit Product'
+                : 'Add Product'}
+            </h2>
 
             <p>
-              {form.name || 'Product'}
+              {form.name ||
+                'New Product'}
             </p>
+
           </div>
+
 
           <button
             type="button"
             className="editor-close-button"
-            onClick={onClose}
+            onClick={
+              onClose
+            }
+            disabled={
+              saving
+            }
           >
             ✕
           </button>
+
         </header>
 
+
+        {/* TOOLBAR */}
+
         <div className="editor-toolbar">
+
           <div className="editor-history-buttons">
+
             <button
               type="button"
-              onClick={undo}
-              disabled={historyIndex === 0}
+              onClick={
+                undo
+              }
+              disabled={
+                historyIndex ===
+                0
+              }
             >
               ↶ Undo
             </button>
 
+
             <button
               type="button"
-              onClick={redo}
+              onClick={
+                redo
+              }
               disabled={
                 historyIndex >=
-                history.length - 1
+                history.length -
+                  1
               }
             >
               Redo ↷
             </button>
+
           </div>
 
+
           <span className="editor-history-help">
-            Ctrl + Z = Undo&nbsp;&nbsp;•&nbsp;&nbsp;
+            Ctrl + Z = Undo
+            &nbsp;&nbsp;•&nbsp;&nbsp;
             Ctrl + Y = Redo
           </span>
+
 
           {mediaMessage && (
             <span className="editor-media-message">
               {mediaMessage}
             </span>
           )}
+
         </div>
 
+
+        {/* BODY */}
+
         <div className="product-editor-body">
+
+          {/* =================================================
+              01 PRODUCT INFORMATION
+          ================================================= */}
+
           <section className="editor-section">
+
             <div className="editor-section-title">
-              <span>01</span>
+
+              <span>
+                01
+              </span>
 
               <div>
+
                 <h3>
                   Product Information
                 </h3>
@@ -477,40 +1809,69 @@ export default function AdminProductEditor({
                   Product details and
                   identification.
                 </p>
+
               </div>
+
             </div>
 
+
             <div className="editor-grid">
+
               <label className="editor-field editor-field-full">
-                <span>Product Name *</span>
+
+                <span>
+                  Product Name *
+                </span>
 
                 <input
-                  value={form.name || ''}
-                  onChange={(event) =>
+                  value={
+                    form.name ||
+                    ''
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'name',
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                 />
+
               </label>
 
+
               <label className="editor-field">
-                <span>Product Code</span>
+
+                <span>
+                  Product Code
+                </span>
 
                 <input
-                  value={form.code || ''}
-                  onChange={(event) =>
+                  value={
+                    form.code ||
+                    ''
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'code',
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                 />
+
               </label>
 
+
               <label className="editor-field">
-                <span>Company / Brand</span>
+
+                <span>
+                  Company / Brand
+                </span>
 
                 <input
                   value={
@@ -518,19 +1879,31 @@ export default function AdminProductEditor({
                     form.brand ||
                     ''
                   }
-                  onChange={(event) =>
-                    updateMultipleFields({
-                      company:
-                        event.target.value,
-                      brand:
-                        event.target.value,
-                    })
+                  onChange={(
+                    event
+                  ) =>
+                    updateMultipleFields(
+                      {
+                        company:
+                          event.target
+                            .value,
+
+                        brand:
+                          event.target
+                            .value,
+                      }
+                    )
                   }
                 />
+
               </label>
 
+
               <label className="editor-field">
-                <span>Manufacturer</span>
+
+                <span>
+                  Manufacturer
+                </span>
 
                 <input
                   value={
@@ -538,47 +1911,106 @@ export default function AdminProductEditor({
                     form.manufact ||
                     ''
                   }
-                  onChange={(event) =>
-                    updateMultipleFields({
-                      manufacturer:
-                        event.target.value,
-                      manufact:
-                        event.target.value,
-                    })
+                  onChange={(
+                    event
+                  ) =>
+                    updateMultipleFields(
+                      {
+                        manufacturer:
+                          event.target
+                            .value,
+
+                        manufact:
+                          event.target
+                            .value,
+                      }
+                    )
                   }
                 />
+
               </label>
 
+
               <label className="editor-field">
-                <span>Unit / Pack Size</span>
+
+                <span>
+                  Unit
+                </span>
 
                 <input
-                  value={form.unit || ''}
-                  onChange={(event) =>
+                  value={
+                    form.unit ||
+                    ''
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'unit',
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                 />
+
               </label>
 
+
               <label className="editor-field">
-                <span>Barcode</span>
+
+                <span>
+                  Pack Size
+                </span>
 
                 <input
-                  value={form.barcode || ''}
-                  onChange={(event) =>
+                  value={
+                    form.packSize ||
+                    ''
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
-                      'barcode',
-                      event.target.value
+                      'packSize',
+                      event.target
+                        .value
                     )
                   }
                 />
+
               </label>
 
+
               <label className="editor-field">
-                <span>Rack No.</span>
+
+                <span>
+                  Barcode
+                </span>
+
+                <input
+                  value={
+                    form.barcode ||
+                    ''
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    updateField(
+                      'barcode',
+                      event.target
+                        .value
+                    )
+                  }
+                />
+
+              </label>
+
+
+              <label className="editor-field">
+
+                <span>
+                  Rack No.
+                </span>
 
                 <input
                   value={
@@ -586,307 +2018,485 @@ export default function AdminProductEditor({
                     form.rackno ||
                     ''
                   }
-                  onChange={(event) =>
-                    updateMultipleFields({
-                      rackNo:
-                        event.target.value,
-                      rackno:
-                        event.target.value,
-                    })
+                  onChange={(
+                    event
+                  ) =>
+                    updateMultipleFields(
+                      {
+                        rackNo:
+                          event.target
+                            .value,
+
+                        rackno:
+                          event.target
+                            .value,
+                      }
+                    )
                   }
                 />
+
               </label>
 
+
               <label className="editor-field">
-                <span>Category</span>
+
+                <span>
+                  Category
+                </span>
 
                 <select
-                  value={form.category || ''}
-                  onChange={(event) =>
+                  value={
+                    form.category ||
+                    ''
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'category',
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                 >
+
                   <option value="">
                     Select Category
                   </option>
 
-                  <option value="Atta, Rice & Dal">
-                    Atta, Rice & Dal
-                  </option>
 
-                  <option value="Oil & Ghee">
-                    Oil & Ghee
-                  </option>
+                  {CATEGORIES.map(
+                    (
+                      item
+                    ) => (
+                      <option
+                        key={
+                          item
+                        }
+                        value={
+                          item
+                        }
+                      >
+                        {item}
+                      </option>
+                    )
+                  )}
 
-                  <option value="Masala & Spices">
-                    Masala & Spices
-                  </option>
-
-                  <option value="Snacks">
-                    Snacks
-                  </option>
-
-                  <option value="Dairy & Breakfast">
-                    Dairy & Breakfast
-                  </option>
-
-                  <option value="Personal Care">
-                    Personal Care
-                  </option>
-
-                  <option value="Home Care">
-                    Home Care
-                  </option>
-
-                  <option value="Baby Care">
-                    Baby Care
-                  </option>
-
-                  <option value="Other">
-                    Other
-                  </option>
                 </select>
+
               </label>
 
+
               <label className="editor-field">
-                <span>Subcategory</span>
+
+                <span>
+                  Subcategory
+                </span>
 
                 <input
                   value={
-                    form.subcategory || ''
+                    form.subcategory ||
+                    ''
                   }
-                  onChange={(event) =>
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'subcategory',
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                 />
+
               </label>
 
+
               <label className="editor-field editor-field-full">
-                <span>Description</span>
+
+                <span>
+                  Description
+                </span>
 
                 <textarea
                   value={
-                    form.description || ''
+                    form.description ||
+                    ''
                   }
-                  onChange={(event) =>
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'description',
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                   rows="4"
                   placeholder="Write product description..."
                 />
+
               </label>
+
             </div>
+
           </section>
 
+
+          {/* =================================================
+              02 PRICING
+          ================================================= */}
+
           <section className="editor-section">
+
             <div className="editor-section-title">
-              <span>02</span>
+
+              <span>
+                02
+              </span>
 
               <div>
-                <h3>Pricing</h3>
+
+                <h3>
+                  Pricing
+                </h3>
 
                 <p>
-                  Control every price from one
-                  place.
+                  Control every price
+                  from one place.
                 </p>
+
               </div>
+
             </div>
 
+
             <div className="editor-grid">
+
               <label className="editor-field">
-                <span>MRP</span>
+
+                <span>
+                  MRP
+                </span>
 
                 <div className="price-input">
-                  <b>₹</b>
+
+                  <b>
+                    ₹
+                  </b>
 
                   <input
                     type="number"
                     step="0.01"
-                    value={form.mrp ?? ''}
-                    onChange={(event) =>
+                    value={
+                      form.mrp ??
+                      ''
+                    }
+                    onChange={(
+                      event
+                    ) =>
                       updateField(
                         'mrp',
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                   />
+
                 </div>
+
               </label>
 
+
               <label className="editor-field">
-                <span>Purchase Rate</span>
+
+                <span>
+                  Purchase Rate
+                </span>
 
                 <div className="price-input">
-                  <b>₹</b>
+
+                  <b>
+                    ₹
+                  </b>
 
                   <input
                     type="number"
                     step="0.01"
                     value={
-                      form.purchaseRate ?? ''
+                      form.purchaseRate ??
+                      form.pur_rate ??
+                      ''
                     }
-                    onChange={(event) =>
-                      updateField(
-                        'purchaseRate',
-                        event.target.value
+                    onChange={(
+                      event
+                    ) =>
+                      updateMultipleFields(
+                        {
+                          purchaseRate:
+                            event.target
+                              .value,
+
+                          pur_rate:
+                            event.target
+                              .value,
+                        }
                       )
                     }
                   />
+
                 </div>
+
               </label>
 
+
               <label className="editor-field">
-                <span>MARG Sale Rate</span>
+
+                <span>
+                  MARG Sale Rate
+                </span>
 
                 <div className="price-input">
-                  <b>₹</b>
+
+                  <b>
+                    ₹
+                  </b>
 
                   <input
                     type="number"
                     step="0.01"
                     value={
-                      form.salePrice ?? ''
+                      form.salePrice ??
+                      form.rate ??
+                      ''
                     }
-                    onChange={(event) =>
-                      updateField(
-                        'salePrice',
-                        event.target.value
+                    onChange={(
+                      event
+                    ) =>
+                      updateMultipleFields(
+                        {
+                          salePrice:
+                            event.target
+                              .value,
+
+                          rate:
+                            event.target
+                              .value,
+                        }
                       )
                     }
                   />
+
                 </div>
+
               </label>
 
+
               <label className="editor-field">
-                <span>Website Price</span>
+
+                <span>
+                  Website Price
+                </span>
 
                 <div className="price-input website-price">
-                  <b>₹</b>
+
+                  <b>
+                    ₹
+                  </b>
 
                   <input
                     type="number"
                     step="0.01"
                     value={
-                      form.websitePrice ?? ''
+                      form.websitePrice ??
+                      form.finalOnlinePrice ??
+                      ''
                     }
-                    onChange={(event) =>
-                      updateField(
-                        'websitePrice',
-                        event.target.value
+                    onChange={(
+                      event
+                    ) =>
+                      updateMultipleFields(
+                        {
+                          websitePrice:
+                            event.target
+                              .value,
+
+                          finalOnlinePrice:
+                            event.target
+                              .value,
+                        }
                       )
                     }
                     placeholder="Website selling price"
                   />
+
                 </div>
+
               </label>
 
+
               <label className="editor-field">
-                <span>Offer Price</span>
+
+                <span>
+                  Offer Price
+                </span>
 
                 <div className="price-input">
-                  <b>₹</b>
+
+                  <b>
+                    ₹
+                  </b>
 
                   <input
                     type="number"
                     step="0.01"
                     value={
-                      form.offerPrice ?? ''
-                    }
-                    onChange={(event) =>
-                      updateField(
-                        'offerPrice',
-                        event.target.value
-                      )
-                    }
-                    placeholder="Optional"
-                  />
-                </div>
-              </label>
-
-              <label className="editor-field">
-                <span>Blinkit Reference Price</span>
-
-                <div className="price-input">
-                  <b>₹</b>
-
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={
-                      form.blinkitReferencePrice ??
+                      form.offerPrice ??
                       ''
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event
+                    ) =>
                       updateField(
-                        'blinkitReferencePrice',
-                        event.target.value
+                        'offerPrice',
+                        event.target
+                          .value
                       )
                     }
-                    placeholder="Reference only"
                   />
+
                 </div>
+
               </label>
+
+
+              <label className="editor-field">
+
+                <span>
+                  Blinkit Reference
+                </span>
+
+                <div className="price-input">
+
+                  <b>
+                    ₹
+                  </b>
+
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={
+                      form.blinkitReference ??
+                      form.blinkitPrice ??
+                      ''
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      updateMultipleFields(
+                        {
+                          blinkitReference:
+                            event.target
+                              .value,
+
+                          blinkitPrice:
+                            event.target
+                              .value,
+                        }
+                      )
+                    }
+                  />
+
+                </div>
+
+              </label>
+
             </div>
+
           </section>
 
+
+          {/* =================================================
+              03 STOCK
+          ================================================= */}
+
           <section className="editor-section">
+
             <div className="editor-section-title">
-              <span>03</span>
+
+              <span>
+                03
+              </span>
 
               <div>
-                <h3>Stock Management</h3>
+
+                <h3>
+                  Stock & Inventory
+                </h3>
 
                 <p>
-                  Manage quantity and stock
-                  availability.
+                  Keep online stock connected
+                  to your MARG data.
                 </p>
+
               </div>
+
             </div>
 
+
             <div className="editor-grid">
+
               <label className="editor-field">
-                <span>Current Stock</span>
+
+                <span>
+                  Current Stock
+                </span>
 
                 <input
                   type="number"
-                  min="0"
                   step="1"
-                  value={form.stock ?? ''}
-                  onChange={(event) =>
+                  value={
+                    form.stock ??
+                    ''
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'stock',
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                 />
+
               </label>
 
+
               <label className="editor-field">
-                <span>Stock Status</span>
+
+                <span>
+                  Stock Status
+                </span>
 
                 <select
                   value={
                     form.stockStatus ||
-                    'auto'
+                    ''
                   }
-                  onChange={(event) =>
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'stockStatus',
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                 >
-                  <option value="auto">
-                    Automatic
+
+                  <option value="">
+                    Auto
                   </option>
 
                   <option value="in-stock">
@@ -900,169 +2510,346 @@ export default function AdminProductEditor({
                   <option value="out-of-stock">
                     Out of Stock
                   </option>
+
                 </select>
+
               </label>
+
             </div>
+
           </section>
 
+
+          {/* =================================================
+              04 MEDIA
+          ================================================= */}
+
           <section className="editor-section">
+
             <div className="editor-section-title">
-              <span>04</span>
+
+              <span>
+                04
+              </span>
 
               <div>
-                <h3>Product Photos & Video</h3>
+
+                <h3>
+                  Product Photos & Video
+                </h3>
 
                 <p>
-                  Upload, arrange and manage
-                  product media.
+                  Upload, drag, arrange and
+                  manage product media.
+                  Images are permanently
+                  uploaded to Cloudinary.
                 </p>
+
               </div>
+
             </div>
 
+
             <div className="media-upload-grid">
+
+              {/* IMAGE CARD */}
+
               <div className="media-upload-card">
+
                 <div className="media-upload-heading">
+
                   <div>
+
                     <strong>
                       Product Photos
                     </strong>
 
                     <small>
-                      Main image should be
-                      first.
+                      Select multiple images
+                      or drag & drop.
                     </small>
+
                   </div>
 
                   <span>
-                    {imageCount} photo
-                    {imageCount !== 1
+                    {imageCount}
+                    {' '}
+                    photo
+                    {imageCount !==
+                    1
                       ? 's'
                       : ''}
                   </span>
+
                 </div>
 
-                <div className="image-preview-grid">
-                  {(
-                    form.images || []
-                  ).map((image, index) => (
-                    <div
-                      className={`image-preview ${
-                        index === 0
-                          ? 'main-image'
-                          : ''
-                      }`}
-                      key={`${image}-${index}`}
-                    >
-                      <img
-                        src={image}
-                        alt={`${form.name || 'Product'} ${
-                          index + 1
-                        }`}
+
+                <div
+                  className={
+                    dragActive
+                      ? 'image-drop-zone drag-active'
+                      : 'image-drop-zone'
+                  }
+                  onDragEnter={
+                    handleImageDragOver
+                  }
+                  onDragOver={
+                    handleImageDragOver
+                  }
+                  onDragLeave={
+                    handleImageDragLeave
+                  }
+                  onDrop={
+                    handleImageDrop
+                  }
+                >
+
+                  <div className="image-preview-grid">
+
+                    {images.map(
+                      (
+                        image,
+                        index
+                      ) => {
+
+                        const status =
+                          uploading[
+                            image
+                          ]
+
+
+                        return (
+                          <div
+                            className={
+                              index ===
+                              0
+                                ? 'image-preview main-image'
+                                : 'image-preview'
+                            }
+                            key={`${image}-${index}`}
+                          >
+
+                            <img
+                              src={
+                                image
+                              }
+                              alt={`${form.name || 'Product'} ${index + 1}`}
+                            />
+
+
+                            {index ===
+                              0 && (
+                              <span className="main-image-badge">
+                                MAIN
+                              </span>
+                            )}
+
+
+                            {status && (
+                              <div className="upload-status-overlay">
+
+                                <strong>
+
+                                  {status.status ===
+                                  'preparing'
+                                    ? 'Preparing…'
+                                    : status.status ===
+                                      'uploading'
+                                    ? `Uploading ${status.progress}%`
+                                    : 'Upload failed'}
+
+                                </strong>
+
+
+                                {status.status ===
+                                  'uploading' && (
+                                  <div className="upload-progress">
+
+                                    <i
+                                      style={{
+                                        width: `${status.progress}%`,
+                                      }}
+                                    />
+
+                                  </div>
+                                )}
+
+
+                                {status.status ===
+                                  'error' && (
+                                  <small>
+                                    {status.error}
+                                  </small>
+                                )}
+
+                              </div>
+                            )}
+
+
+                            <div className="image-actions">
+
+                              {index >
+                                0 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setMainImage(
+                                      index
+                                    )
+                                  }
+                                  title="Make main image"
+                                >
+                                  ★
+                                </button>
+                              )}
+
+
+                              {index >
+                                0 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    moveImageLeft(
+                                      index
+                                    )
+                                  }
+                                  title="Move left"
+                                >
+                                  ←
+                                </button>
+                              )}
+
+
+                              {index <
+                                images.length -
+                                  1 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    moveImageRight(
+                                      index
+                                    )
+                                  }
+                                  title="Move right"
+                                >
+                                  →
+                                </button>
+                              )}
+
+
+                              {status?.status ===
+                                'error' && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    retryImage(
+                                      image
+                                    )
+                                  }
+                                  title="Retry"
+                                >
+                                  ↻
+                                </button>
+                              )}
+
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeImage(
+                                    index
+                                  )
+                                }
+                                title="Delete"
+                              >
+                                ×
+                              </button>
+
+                            </div>
+
+                          </div>
+                        )
+                      }
+                    )}
+
+
+                    {/* ADD PHOTO */}
+
+                    <label className="upload-image-button">
+
+                      <span>
+                        ＋
+                      </span>
+
+                      <strong>
+                        Add Photos
+                      </strong>
+
+                      <small>
+                        JPG / PNG / WEBP
+                      </small>
+
+
+                      <input
+                        ref={
+                          imageInputRef
+                        }
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/*"
+                        multiple
+                        onChange={
+                          handleImages
+                        }
                       />
 
-                      {index === 0 && (
-                        <span className="main-image-badge">
-                          MAIN
-                        </span>
-                      )}
+                    </label>
 
-                      <div className="image-actions">
-                        <button
-                          type="button"
-                          title="Set as main image"
-                          disabled={
-                            index === 0
-                          }
-                          onClick={() =>
-                            setMainImage(
-                              index
-                            )
-                          }
-                        >
-                          ⭐
-                        </button>
+                  </div>
 
-                        <button
-                          type="button"
-                          title="Move left"
-                          disabled={
-                            index === 0
-                          }
-                          onClick={() =>
-                            moveImageLeft(
-                              index
-                            )
-                          }
-                        >
-                          ←
-                        </button>
 
-                        <button
-                          type="button"
-                          title="Move right"
-                          disabled={
-                            index ===
-                            imageCount - 1
-                          }
-                          onClick={() =>
-                            moveImageRight(
-                              index
-                            )
-                          }
-                        >
-                          →
-                        </button>
+                  <div className="drag-upload-info">
 
-                        <button
-                          type="button"
-                          title="Delete image"
-                          onClick={() =>
-                            removeImage(
-                              index
-                            )
-                          }
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-
-                  <label className="upload-image-button">
-                    <span>＋</span>
+                    <span>
+                      🖼️
+                    </span>
 
                     <strong>
-                      Add Photos
+                      {dragActive
+                        ? 'Drop images here'
+                        : 'Drag & Drop images here'}
                     </strong>
 
                     <small>
-                      JPG, PNG, WEBP
+                      or click “Add Photos”
                     </small>
 
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={
-                        handleImages
-                      }
-                    />
-                  </label>
+                  </div>
+
                 </div>
+
 
                 {!hasImages && (
                   <div className="no-media-message">
+
                     📷 No product image yet.
                     Upload at least one image
                     before making this product
                     LIVE.
+
                   </div>
                 )}
+
               </div>
 
+
+              {/* VIDEO CARD */}
+
               <div className="media-upload-card">
+
                 <div className="media-upload-heading">
+
                   <div>
+
                     <strong>
                       Product Video
                     </strong>
@@ -1070,6 +2857,7 @@ export default function AdminProductEditor({
                     <small>
                       Optional product video.
                     </small>
+
                   </div>
 
                   <span>
@@ -1077,16 +2865,23 @@ export default function AdminProductEditor({
                       ? 'Added'
                       : 'No video'}
                   </span>
+
                 </div>
 
+
                 {hasVideo ? (
+
                   <div className="video-preview-box">
+
                     <video
                       className="product-video-preview"
-                      src={form.video}
+                      src={
+                        form.video
+                      }
                       controls
                       playsInline
                     />
+
 
                     <button
                       type="button"
@@ -1097,217 +2892,404 @@ export default function AdminProductEditor({
                     >
                       Remove Video
                     </button>
+
                   </div>
+
                 ) : (
-                  <label className="upload-video-button">
-                    <span>🎥</span>
 
-                    <strong>
-                      Add Product Video
-                    </strong>
+                  <div
+                    className={
+                      videoDragActive
+                        ? 'video-drop-zone drag-active'
+                        : 'video-drop-zone'
+                    }
+                    onDragEnter={
+                      handleVideoDragOver
+                    }
+                    onDragOver={
+                      handleVideoDragOver
+                    }
+                    onDragLeave={
+                      handleVideoDragLeave
+                    }
+                    onDrop={
+                      handleVideoDrop
+                    }
+                  >
 
-                    <small>
-                      MP4 / WebM
-                    </small>
+                    <label className="upload-video-button">
 
-                    <input
-                      type="file"
-                      accept="video/mp4,video/webm,video/quicktime,video/*"
-                      onChange={
-                        handleVideo
-                      }
-                    />
-                  </label>
+                      <span>
+                        🎥
+                      </span>
+
+                      <strong>
+                        Add Product Video
+                      </strong>
+
+                      <small>
+                        MP4 / WebM / MOV
+                      </small>
+
+
+                      <input
+                        ref={
+                          videoInputRef
+                        }
+                        type="file"
+                        accept="video/*"
+                        onChange={
+                          handleVideo
+                        }
+                      />
+
+                    </label>
+
+
+                    <div className="drag-upload-info">
+
+                      <strong>
+                        {videoDragActive
+                          ? 'Drop video here'
+                          : 'Drag & Drop video here'}
+                      </strong>
+
+                      <small>
+                        or click to select
+                      </small>
+
+                    </div>
+
+                  </div>
+
                 )}
+
               </div>
+
             </div>
+
           </section>
 
+
+          {/* =================================================
+              05 WEBSITE CONTROLS
+          ================================================= */}
+
           <section className="editor-section">
+
             <div className="editor-section-title">
-              <span>05</span>
+
+              <span>
+                05
+              </span>
 
               <div>
-                <h3>Website Controls</h3>
+
+                <h3>
+                  Website Controls
+                </h3>
 
                 <p>
                   Control product visibility
                   and website sections.
                 </p>
+
               </div>
+
             </div>
 
+
             <div className="editor-toggle-grid">
+
+              {/* ACTIVE */}
+
               <label className="editor-toggle">
+
                 <input
                   type="checkbox"
                   checked={
-                    form.isActive !== false
+                    form.isActive !==
+                    false
                   }
-                  onChange={(event) =>
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'isActive',
-                      event.target.checked
+                      event.target
+                        .checked
                     )
                   }
                 />
 
                 <span>
-                  <strong>Active</strong>
+
+                  <strong>
+                    Active
+                  </strong>
 
                   <small>
                     Product is enabled.
                   </small>
+
                 </span>
+
               </label>
 
-              <label className="editor-toggle">
+
+              {/* LIVE */}
+
+              <label
+                className={
+                  hasImages
+                    ? 'editor-toggle'
+                    : 'editor-toggle disabled'
+                }
+              >
+
                 <input
                   type="checkbox"
                   checked={
-                    form.isLive === true
+                    hasImages &&
+                    form.isLive ===
+                      true
                   }
-                  onChange={(event) =>
+                  disabled={
+                    !hasImages
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'isLive',
-                      event.target.checked
+                      event.target
+                        .checked
                     )
                   }
                 />
 
                 <span>
-                  <strong>Live</strong>
+
+                  <strong>
+                    Live
+                  </strong>
 
                   <small>
-                    Show product on website.
+                    {hasImages
+                      ? 'Show product on website.'
+                      : 'Image required before LIVE.'}
                   </small>
+
                 </span>
+
               </label>
 
+
+              {/* FEATURED */}
+
               <label className="editor-toggle">
+
                 <input
                   type="checkbox"
                   checked={
-                    form.isFeatured === true
+                    form.isFeatured ===
+                    true
                   }
-                  onChange={(event) =>
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'isFeatured',
-                      event.target.checked
+                      event.target
+                        .checked
                     )
                   }
                 />
 
                 <span>
-                  <strong>Featured</strong>
+
+                  <strong>
+                    Featured
+                  </strong>
 
                   <small>
                     Show in featured section.
                   </small>
+
                 </span>
+
               </label>
 
+
+              {/* BEST SELLER */}
+
               <label className="editor-toggle">
+
                 <input
                   type="checkbox"
                   checked={
-                    form.isBestSeller === true
+                    form.isBestSeller ===
+                    true
                   }
-                  onChange={(event) =>
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'isBestSeller',
-                      event.target.checked
+                      event.target
+                        .checked
                     )
                   }
                 />
 
                 <span>
-                  <strong>Best Seller</strong>
+
+                  <strong>
+                    Best Seller
+                  </strong>
 
                   <small>
                     Mark as best seller.
                   </small>
+
                 </span>
+
               </label>
 
+
+              {/* NEW ARRIVAL */}
+
               <label className="editor-toggle">
+
                 <input
                   type="checkbox"
                   checked={
-                    form.isNewArrival === true
+                    form.isNewArrival ===
+                    true
                   }
-                  onChange={(event) =>
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'isNewArrival',
-                      event.target.checked
+                      event.target
+                        .checked
                     )
                   }
                 />
 
                 <span>
-                  <strong>New Arrival</strong>
+
+                  <strong>
+                    New Arrival
+                  </strong>
 
                   <small>
                     Mark as new arrival.
                   </small>
+
                 </span>
+
               </label>
 
+
+              {/* OFFER */}
+
               <label className="editor-toggle">
+
                 <input
                   type="checkbox"
                   checked={
-                    form.isOffer === true
+                    form.isOffer ===
+                    true
                   }
-                  onChange={(event) =>
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       'isOffer',
-                      event.target.checked
+                      event.target
+                        .checked
                     )
                   }
                 />
 
                 <span>
-                  <strong>Offer</strong>
+
+                  <strong>
+                    Offer
+                  </strong>
 
                   <small>
                     Enable offer display.
                   </small>
+
                 </span>
+
               </label>
+
             </div>
+
 
             {!hasImages && (
               <div className="live-warning">
+
                 ⚠️ This product has no image.
-                Keep it NOT LIVE until an
-                image is uploaded.
+                It cannot be made LIVE until
+                an image is added.
+
               </div>
             )}
+
           </section>
+
         </div>
 
+
+        {/* FOOTER */}
+
         <footer className="product-editor-footer">
+
           <button
             type="button"
             className="editor-cancel-button"
-            onClick={onClose}
+            onClick={
+              onClose
+            }
+            disabled={
+              saving
+            }
           >
             Cancel
           </button>
 
+
           <button
             type="button"
             className="editor-save-button"
-            onClick={handleSave}
-            disabled={saving}
+            onClick={
+              handleSave
+            }
+            disabled={
+              saving ||
+              pendingUploads.length >
+                0
+            }
           >
-            {saving
-              ? 'Saving...'
-              : 'Save Product'}
+
+            {pendingUploads.length >
+            0
+              ? `Uploading ${pendingUploads.length} media…`
+              : saving
+                ? 'Saving...'
+                : 'Save Product'}
+
           </button>
+
         </footer>
+
       </div>
+
     </div>
   )
 }

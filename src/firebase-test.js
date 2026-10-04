@@ -1,32 +1,35 @@
 import { db } from "./firebase";
-import { collection, getDocs, limit, query } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  limit,
+  query,
+} from "firebase/firestore";
 
-export async function testFirebaseConnection() {
+console.log("🔥 Firebase DB:", db);
+
+async function testFirebase() {
   try {
-    const testQuery = query(
-      collection(db, "products"),
+    const productsRef = collection(db, "products");
+
+    const q = query(
+      productsRef,
       limit(1)
     );
 
-    const snapshot = await getDocs(testQuery);
+    const snapshot = await getDocs(q);
 
-    console.log(
-      "✅ FIREBASE CONNECTED"
-    );
-
+    console.log("✅ FIREBASE CONNECTED");
     console.log(
       "Products found:",
       snapshot.size
     );
-
-    return true;
   } catch (error) {
     console.error(
-      "❌ FIREBASE CONNECTION FAILED"
+      "❌ FIREBASE ERROR:",
+      error
     );
-
-    console.error(error);
-
-    return false;
   }
 }
+
+testFirebase();

@@ -1,25 +1,48 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
+import React, { Suspense, lazy } from "react";
+import ReactDOM from "react-dom/client";
 
-import App from './App.jsx'
-import AdminDashboard from './admin/AdminDashboard.jsx'
+import App from "./App.jsx";
+import "./index.css";
 
-import './index.css'
+const AdminDashboard = lazy(() =>
+  import("./admin/AdminDashboard.jsx")
+);
 
 function Root() {
-  const path = window.location.pathname.toLowerCase()
+  const path =
+    window.location.pathname.toLowerCase();
 
-  // Admin Control Panel
-  if (path === '/admin' || path.startsWith('/admin/')) {
-    return <AdminDashboard />
+  if (
+    path === "/admin" ||
+    path.startsWith("/admin/")
+  ) {
+    return (
+      <Suspense
+        fallback={
+          <div className="admin-loading">
+            Loading Admin Panel...
+          </div>
+        }
+      >
+        <AdminDashboard />
+      </Suspense>
+    );
   }
 
-  // Customer Shopping Website
-  return <App />
+  return <App />;
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const rootElement =
+  document.getElementById("root");
+
+if (!rootElement) {
+  throw new Error(
+    'Root element "#root" not found.'
+  );
+}
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <Root />
-  </React.StrictMode>,
-)
+  </React.StrictMode>
+);
