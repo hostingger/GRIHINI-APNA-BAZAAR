@@ -1,16 +1,15 @@
-# React + Vite
+# Grihini Apna Bazaar
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Professional, mobile-first grocery storefront built with React + Vite. Backend is Supabase (free-first) to avoid Firebase Storage's required Blaze billing-plan activation. COD only; companion app is planned after website order flow is verified.
 
-Currently, two official plugins are available:
+## Quick start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm test
+npm run dev
+```
 
-## React Compiler
+For cloud mode, copy `.env.example` to `.env.local`, add the Supabase Project URL and public anon/publishable key, then run `supabase-schema.sql` in Supabase SQL Editor. Follow `SETUP-HI.md` in Hindi to create the admin role and test the full order journey.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+**Important:** Demo Mode uses localStorage and does not sync between devices. Production cloud mode requires Supabase setup and a real-device end-to-end test before launch. Never expose a Supabase service-role key in frontend code.

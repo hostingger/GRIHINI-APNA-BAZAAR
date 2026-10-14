@@ -1,48 +1,262 @@
-import React, { Suspense, lazy } from "react";
-import ReactDOM from "react-dom/client";
+import React, { useEffect, useMemo, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { ArrowDown, ArrowLeft, ArrowRight, BadgeCheck, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, MapPin, Menu, Minus, PackageCheck, Plus, Search, ShieldCheck, ShoppingBag, ShoppingCart, Store, Truck, X, LogIn, LogOut, Package, Phone, CircleCheck, CircleX, RefreshCw, ClipboardList, UserRound, Navigation, Leaf, Headphones, Heart, FileUp, Pencil, Trash2, Download, Upload, BarChart3, Tag, ImagePlus, LocateFixed, PackagePlus, MoreHorizontal, Sparkles, Home, Percent, Info } from 'lucide-react';
+import { CATEGORIES, PRODUCTS } from './data';
+import { makeOrderPayload } from './orderLogic';
+import { adminSignIn, adminSignOut, getOrder, isCurrentUserAdmin, isDemoMode, saveOrder, setOrderStatus, subscribeOrders, subscribeProducts, saveProduct, removeProduct, uploadProductMedia, watchAuth, watchOrder, subscribeStoreSettings, saveStoreSettings } from './store';
+import './styles.css';
 
-import App from "./App.jsx";
-import "./index.css";
+const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value || 0);
+const makeTrackingCode = () => `GPB-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+const blankCustomer = { name: '', phone: '', address: '', landmark: '' };
 
-const AdminDashboard = lazy(() =>
-  import("./admin/AdminDashboard.jsx")
-);
+function App() {
+  const [category, setCategory] = useState('All items');
+  const [search, setSearch] = useState('');
+  const [cart, setCart] = useState(() => { try { return JSON.parse(localStorage.getItem('gpb_cart_v1') || '[]'); } catch { return []; } });
+  const [products, setProducts] = useState(PRODUCTS.map((p) => ({ ...p, active: true, stock: 50 })));
+  const [storeSettings, setStoreSettings] = useState({ heroImage: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=90', promoImage: '', promoTitle: 'Fresh offers for your home', promoText: 'Everyday essentials, close to home.' });
+  const [wishlist, setWishlist] = useState(() => { try { return JSON.parse(localStorage.getItem('gpb_wishlist_v1') || '[]'); } catch { return []; } });
+  const [showWishlist, setShowWishlist] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [customer, setCustomer] = useState(blankCustomer);
+  const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [placedOrder, setPlacedOrder] = useState(null);
+  const [trackOpen, setTrackOpen] = useState(false);
+  const [trackCode, setTrackCode] = useState('');
+  const [trackedOrder, setTrackedOrder] = useState(null);
+  const [trackError, setTrackError] = useState('');
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminUser, setAdminUser] = useState(null);
+  const [adminAllowed, setAdminAllowed] = useState(false);
+  const [adminError, setAdminError] = useState('');
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [mobileMenu, setMobileMenu] = useState(false);
+  const [adminTab, setAdminTab] = useState('Orders');
 
-function Root() {
-  const path =
-    window.location.pathname.toLowerCase();
+  useEffect(() => { const unsubscribe = subscribeProducts(setProducts, (error) => setNotice(error.message)); return unsubscribe; }, []);
+  useEffect(() => subscribeStoreSettings(setStoreSettings, (error) => setNotice(error.message)), []);
+  useEffect(() => { localStorage.setItem('gpb_cart_v1', JSON.stringify(cart)); }, [cart]);
+  useEffect(() => { localStorage.setItem('gpb_wishlist_v1', JSON.stringify(wishlist)); }, [wishlist]);
 
-  if (
-    path === "/admin" ||
-    path.startsWith("/admin/")
-  ) {
-    return (
-      <Suspense
-        fallback={
-          <div className="admin-loading">
-            Loading Admin Panel...
-          </div>
-        }
-      >
-        <AdminDashboard />
-      </Suspense>
-    );
+  useEffect(() => watchAuth(async (user) => {
+    setAdminUser(user);
+    if (user) {
+      const allowed = await isCurrentUserAdmin(user).catch(() => false);
+      setAdminAllowed(allowed);
+      if (!allowed) setAdminError('This account is signed in, but it does not have the admin role. Add the admin role for this user in Supabase using the SQL instructions in SETUP-HI.md.');
+    } else { setAdminAllowed(false); }
+  }), []);
+
+  useEffect(() => {
+    if (trackOpen && trackedOrder?.trackingCode) {
+      return watchOrder(trackedOrder.trackingCode, setTrackedOrder, (error) => setTrackError(error.message));
+    }
+  }, [trackOpen, trackedOrder?.trackingCode]);
+
+  useEffect(() => {
+    if (!adminAllowed && !isDemoMode) return;
+    if (adminOpen && adminAllowed) return subscribeOrders(setOrders, (error) => setAdminError(error.message));
+    if (adminOpen && isDemoMode) return subscribeOrders(setOrders, (error) => setAdminError(error.message));
+  }, [adminOpen, adminAllowed]);
+
+  const filtered = useMemo(() => products.filter((product) => product.active !== false && (!showWishlist || wishlist.includes(product.id)) && (category === 'All items' || product.category === category) && `${product.name} ${product.category} ${product.size}`.toLowerCase().includes(search.toLowerCase())), [products, category, search, showWishlist, wishlist]);
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const deliveryFee = subtotal >= 499 ? 0 : 25;
+  const total = subtotal + deliveryFee;
+  const updateQuantity = (product, change) => setCart((items) => {
+    const found = items.find((item) => item.id === product.id);
+    const currentQuantity = found?.quantity || 0;
+    const stock = Number.isFinite(Number(product.stock)) ? Number(product.stock) : 999999;
+    if (change > 0 && currentQuantity + change > stock) { setNotice(stock <= 0 ? `${product.name} is currently out of stock.` : `Only ${stock} unit(s) of ${product.name} are available.`); return items; }
+    if (!found && change > 0) return [...items, { ...product, quantity: 1 }];
+    return items.map((item) => item.id === product.id ? { ...product, quantity: item.quantity + change } : item).filter((item) => item.quantity > 0);
+  });
+
+  async function placeOrder(event) {
+    event.preventDefault(); setBusy(true); setNotice('');
+    try {
+      const order = makeOrderPayload({ customer, items: cart, subtotal, deliveryFee, notes }, makeTrackingCode());
+      await saveOrder(order);
+      setPlacedOrder(order); setCart([]); setCheckoutOpen(false); setCartOpen(false); setCustomer(blankCustomer); setNotes(''); setTrackedOrder(order); setTrackCode(order.trackingCode); setTrackOpen(true);
+      setNotice('Your order has been placed successfully.');
+    } catch (error) { setNotice(error.message || 'Could not place order. Please try again.'); }
+    finally { setBusy(false); }
   }
 
-  return <App />;
+  async function trackOrder(event) {
+    event?.preventDefault(); setTrackError(''); setTrackedOrder(null);
+    try { const order = await getOrder(trackCode); if (!order) setTrackError('Order not found. Check the tracking code and try again.'); else setTrackedOrder(order); }
+    catch (error) { setTrackError(error.message || 'Could not look up this order.'); }
+  }
+
+  async function loginAdmin(event) {
+    event.preventDefault(); setAdminBusy(true); setAdminError('');
+    try {
+      await adminSignIn(adminEmail, adminPassword);
+      // The auth listener checks the user's role. A signed-in non-admin is not shown the dashboard.
+    } catch (error) { setAdminError(error.message || 'Unable to sign in.'); }
+    finally { setAdminBusy(false); }
+  }
+
+  async function changeStatus(order, status) {
+    setAdminError('');
+    try {
+      const updatedOrder = await setOrderStatus(order.trackingCode, status);
+      // Update the UI immediately instead of relying solely on Supabase Realtime.
+      setOrders((current) => current.map((item) => item.trackingCode === updatedOrder.trackingCode ? updatedOrder : item));
+      if (trackedOrder?.trackingCode === order.trackingCode) setTrackedOrder(updatedOrder);
+    } catch (error) {
+      setAdminError(error.message || 'Status update failed.');
+    }
+  }
+
+  const activeOrders = orders.filter((order) => !['Delivered', 'Rejected', 'Cancelled'].includes(order.status));
+
+  return <div className="app-shell">
+    <div className="topline"><div className="wrap topline-inner"><span><MapPin size={13} /> Serving Aurangabad and nearby areas</span><span className="topline-right"><ShieldCheck size={13} /> Everyday essentials. Delivered with care.</span></div></div>
+    <header className="site-header"><div className="wrap header-inner">
+      <button className="icon-btn mobile-menu-btn" aria-label="Open menu" onClick={() => setMobileMenu(!mobileMenu)}><Menu /></button>
+      <button className="brand" onClick={() => { setAdminOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}><span className="brand-mark"><Store size={24} /></span><span className="brand-copy"><strong>Grihini <em>Apna Bazaar</em></strong><small>GOODNESS FOR EVERY HOME</small></span></button>
+      <div className="searchbox"><Search size={18} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search atta, dal, oil, spices..." aria-label="Search products" /><kbd>⌕</kbd></div>
+      <div className="header-actions"><button className="track-link" onClick={() => { setTrackOpen(true); setTrackedOrder(null); setTrackError(''); }}><Package size={18} /><span>Track order</span></button><button className="cart-button" onClick={() => setCartOpen(true)}><ShoppingCart size={19} /><span>My cart</span><b>{cartCount}</b></button></div>
+    </div>
+      {mobileMenu && <div className="mobile-menu wrap"><div className="mobile-menu-title"><strong>Explore Grihini</strong><button className="icon-btn" aria-label="Close menu" onClick={() => setMobileMenu(false)}><X size={18}/></button></div><button onClick={() => { setAdminOpen(false); setCategory('All items'); setShowWishlist(false); setMobileMenu(false); document.getElementById('shop')?.scrollIntoView({behavior:'smooth'}); }}><ShoppingBag size={17}/> Shop all products <ChevronRight size={16}/></button><button onClick={() => { setShowWishlist(true); setAdminOpen(false); setMobileMenu(false); document.getElementById('shop')?.scrollIntoView({behavior:'smooth'}); }}><Heart size={17}/> My wishlist <ChevronRight size={16}/></button><button onClick={() => { setTrackOpen(true); setTrackError(''); setMobileMenu(false); }}><Package size={17}/> Track an order <ChevronRight size={16}/></button><button onClick={() => { setCategory('All items'); setSearch(''); setAdminOpen(false); setMobileMenu(false); document.getElementById('shop')?.scrollIntoView({behavior:'smooth'}); }}><Percent size={17}/> Offers & popular picks <ChevronRight size={16}/></button><button onClick={() => { setMobileMenu(false); document.getElementById('store-info')?.scrollIntoView({behavior:'smooth'}); }}><Info size={17}/> About our store <ChevronRight size={16}/></button><button onClick={() => { setAdminOpen(true); setMobileMenu(false); }}><Store size={17}/> Admin portal <ChevronRight size={16}/></button></div>}
+    </header>
+
+    {adminOpen ? <AdminDashboard storeSettings={storeSettings} setStoreSettings={setStoreSettings} orders={orders} setOrders={setOrders} activeOrders={activeOrders} adminError={adminError} setAdminError={setAdminError} adminAllowed={adminAllowed} setAdminAllowed={setAdminAllowed} adminUser={adminUser} adminEmail={adminEmail} setAdminEmail={setAdminEmail} adminPassword={adminPassword} setAdminPassword={setAdminPassword} adminBusy={adminBusy} setAdminBusy={setAdminBusy} loginAdmin={loginAdmin} changeStatus={changeStatus} products={products} setProducts={setProducts} onBack={() => setAdminOpen(false)} /> : <main>
+      <section className="hero"><div className="wrap hero-grid"><div className="hero-copy"><div className="hero-kicker"><span className="kicker-dot" /> YOUR NEIGHBOURHOOD GROCERY STORE</div><h1>Good food.<br /><span>Good homes.</span><br />Good every day.</h1><p>Your everyday kirana essentials, handpicked with care and brought closer to home.</p><div className="hero-actions"><button className="btn btn-primary" onClick={() => document.getElementById('shop').scrollIntoView({ behavior: 'smooth' })}>Shop essentials <ArrowRight size={17} /></button><button className="text-btn" onClick={() => { setTrackOpen(true); setTrackedOrder(null); }}>Track an order <ArrowRight size={16} /></button></div><div className="hero-points"><span><Check size={15} /> Quality essentials</span><span><Check size={15} /> Easy COD</span><span><Check size={15} /> Local delivery</span></div></div><div className="hero-visual"><div className="hero-image"><img src={storeSettings.heroImage || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=90"} alt="Grihini Apna Bazaar featured grocery promotion" /></div><div className="floating-note"><span className="float-icon"><Leaf size={18} /></span><span><strong>Care in every basket</strong><small>Your local everyday store</small></span></div><div className="hero-stamp"><strong>₹</strong><span>LOCAL<br />LOVE</span></div></div></div></section>
+      <section className="category-showcase wrap" aria-label="Shop by category"><div className="category-showcase-head"><div><span className="eyebrow">QUICK SHOP</span><h2>Shop by category</h2></div><button className="text-btn" onClick={() => { setCategory('All items'); document.getElementById('shop')?.scrollIntoView({behavior:'smooth'}); }}>View all <ArrowRight size={15}/></button></div><div className="category-tiles">{CATEGORIES.filter((item) => item !== 'All items').slice(0,7).map((item) => { const categoryProduct = products.find((p) => p.category === item && p.active !== false); return <button className={`category-tile ${category === item ? 'selected' : ''}`} key={item} onClick={() => { setCategory(item); setShowWishlist(false); document.getElementById('shop')?.scrollIntoView({behavior:'smooth'}); }}><span className="category-tile-image">{categoryProduct?.image ? <img src={categoryProduct.image} alt="" loading="lazy"/> : <ShoppingBag size={24}/>}</span><strong>{item}</strong><small>Explore range <ArrowRight size={12}/></small></button>; })}</div></section>
+      {storeSettings.promoImage && <section className="promo-banner wrap"><img src={storeSettings.promoImage} alt={storeSettings.promoTitle || 'Grihini Apna Bazaar promotion'} loading="lazy"/><div className="promo-banner-shade"/><div className="promo-banner-copy"><span className="eyebrow">JUST FOR YOUR HOME</span><h2>{storeSettings.promoTitle || 'Fresh offers for your home'}</h2><p>{storeSettings.promoText || 'Everyday essentials, close to home.'}</p><button className="btn btn-primary" onClick={()=>document.getElementById('shop')?.scrollIntoView({behavior:'smooth'})}>Shop offers <ArrowRight size={16}/></button></div></section>}
+      <section className="benefits"><div className="wrap benefits-grid"><div className="benefit"><span className="benefit-icon"><BadgeCheck /></span><span><strong>Everyday essentials</strong><small>For your whole household</small></span></div><div className="benefit"><span className="benefit-icon"><Truck /></span><span><strong>Local delivery</strong><small>Aurangabad & nearby</small></span></div><div className="benefit"><span className="benefit-icon"><ShieldCheck /></span><span><strong>Pay on delivery</strong><small>No online payment needed</small></span></div><div className="benefit"><span className="benefit-icon"><Headphones /></span><span><strong>Here to help</strong><small>Friendly local service</small></span></div></div></section>
+      <section className="shop-section wrap" id="shop"><div className="section-heading"><div><div className="eyebrow">THE PANTRY EDIT</div><h2>Everyday favourites</h2><p>Good basics make every meal feel like home.</p></div><div className="product-count">{filtered.length} products <ArrowDown size={15} /></div></div>
+        <div className="category-toolbar"><div className="category-row"><button className={`category-chip ${category === 'All items' && !showWishlist ? 'active' : ''}`} onClick={() => { setShowWishlist(false); setCategory('All items'); }}>All items</button>{CATEGORIES.filter((item) => item !== 'All items').map((item) => <button key={item} className={`category-chip ${category === item && !showWishlist ? 'active' : ''}`} onClick={() => { setShowWishlist(false); setCategory(item); }}>{item}</button>)}</div><button className={`wishlist-filter ${showWishlist ? 'active' : ''}`} onClick={() => setShowWishlist(!showWishlist)}><Heart size={15} fill={showWishlist ? 'currentColor' : 'none'}/><span>{showWishlist ? 'Showing saved' : 'Wishlist'}</span><b>{wishlist.length}</b></button></div>
+        {filtered.length ? <div className="product-grid">{filtered.map((product) => <article className="product-card" key={product.id}><ProductImageCarousel product={product} wishlist={wishlist} setWishlist={setWishlist} cart={cart} updateQuantity={updateQuantity} /></article>)}</div> : <div className="empty-state"><Search size={35} /><h3>No products found</h3><p>Try another search or select a different category.</p><button className="btn btn-ghost" onClick={() => { setSearch(''); setCategory('All items'); }}>Clear filters</button></div>}
+      </section>
+      <section className="delivery-banner"><div className="wrap delivery-inner"><div className="delivery-art"><div className="delivery-circle"><ShoppingBag size={42} /></div><span className="spark spark-one">✦</span><span className="spark spark-two">✳</span></div><div><div className="eyebrow">FROM OUR STORE TO YOUR DOOR</div><h2>Fill your pantry.<br /><em>Keep your day simple.</em></h2><p>Browse the basics, place your order, and pay when it arrives.</p></div><button className="btn btn-light" onClick={() => document.getElementById('shop').scrollIntoView({ behavior: 'smooth' })}>Browse products <ArrowRight size={17} /></button></div></section>
+    </main>}
+
+    <footer className="site-footer" id="store-info"><div className="wrap footer-main"><div className="footer-brand"><div className="brand"><span className="brand-mark"><Store size={23} /></span><span className="brand-copy"><strong>Grihini <em>Apna Bazaar</em></strong><small>GOODNESS FOR EVERY HOME</small></span></div><p>Your neighbourhood partner for the everyday essentials that make a house feel like home.</p></div><div className="footer-col"><strong>Explore</strong><button onClick={() => { setAdminOpen(false); document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth' }); }}>Shop essentials</button><button onClick={() => setTrackOpen(true)}>Track your order</button><button onClick={() => setAdminOpen(true)}>Admin portal</button></div><div className="footer-col"><strong>Visit our store</strong><span><MapPin size={15} /> Old G.T. Road, Aurangabad,<br /> Bihar – 824101</span><span><Clock3 size={15} /> Local delivery in service area</span><span><Phone size={15} /> Contact details coming soon</span></div></div><div className="wrap footer-bottom"><span>© Grihini Apna Bazaar Private Limited, 2026 — Developed by AbhiWeb</span><span>Made for local homes <span className="heart">♥</span> · Prices in INR</span></div></footer>
+
+    {notice && <div className={`toast ${notice.includes('successfully') ? 'success' : 'error'}`}><span>{notice}</span><button onClick={() => setNotice('')} aria-label="Dismiss"><X size={16} /></button></div>}
+
+    {cartOpen && <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setCartOpen(false); }}><aside className="drawer"><div className="drawer-head"><div><span className="eyebrow">YOUR BASKET</span><h2>My cart <span>({cartCount})</span></h2></div><button className="icon-btn" onClick={() => setCartOpen(false)} aria-label="Close cart"><X /></button></div>{cart.length === 0 ? <div className="empty-state cart-empty"><ShoppingBag size={43} /><h3>Your basket is waiting</h3><p>Add a few everyday essentials to get started.</p><button className="btn btn-primary" onClick={() => { setCartOpen(false); document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth' }); }}>Explore products</button></div> : <><div className="drawer-items">{cart.map((item) => <div className="cart-item" key={item.id}><img src={item.image} alt="" /><div className="cart-item-info"><strong>{item.name}</strong><small>{item.size}</small><b>{money(item.price * item.quantity)}</b></div><div className="qty-control"><button onClick={() => updateQuantity(item, -1)} aria-label="Decrease quantity"><Minus size={13} /></button><span>{item.quantity}</span><button onClick={() => updateQuantity(item, 1)} aria-label="Increase quantity"><Plus size={13} /></button></div></div>)}</div><div className="drawer-summary"><div className="delivery-progress"><span className="progress-icon"><Truck size={17} /></span><span>{subtotal >= 499 ? 'You unlocked free delivery!' : `Add ${money(499 - subtotal)} more for free delivery`}</span></div><div className="summary-line"><span>Subtotal</span><strong>{money(subtotal)}</strong></div><div className="summary-line"><span>Delivery fee</span><strong>{deliveryFee === 0 ? 'FREE' : money(deliveryFee)}</strong></div><div className="summary-line summary-total"><span>Total</span><strong>{money(total)}</strong></div><button className="btn btn-primary full-btn" onClick={() => { setCartOpen(false); setCheckoutOpen(true); }}>Continue to checkout <ArrowRight size={17} /></button><p className="secure-note"><ShieldCheck size={14} /> Cash on delivery · No online payment</p></div></>}</aside></div>}
+
+    {checkoutOpen && <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setCheckoutOpen(false); }}><section className="modal checkout-modal"><div className="modal-head"><div><span className="eyebrow">JUST A FEW DETAILS</span><h2>Delivery details</h2><p>We’ll bring your basket to your doorstep.</p></div><button className="icon-btn" onClick={() => setCheckoutOpen(false)} aria-label="Close checkout"><X /></button></div><form onSubmit={placeOrder} className="checkout-form"><div className="form-grid"><label>Full name *<input required minLength={2} value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="Name on the order" /></label><label>Mobile number *<input required type="tel" minLength={10} maxLength={16} value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="10-digit mobile number" /></label></div><label>Delivery address *<textarea required minLength={8} rows={3} value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} placeholder="House no., street, area, Aurangabad" /></label><button type="button" className="btn btn-ghost location-btn" onClick={() => { if (!navigator.geolocation) { setNotice('Location is not supported by this browser. Please type your address.'); return; } navigator.geolocation.getCurrentPosition((position) => { const { latitude, longitude } = position.coords; setCustomer((c) => ({ ...c, address: `${c.address}${c.address ? ' ' : ''}(Location: ${latitude.toFixed(5)}, ${longitude.toFixed(5)})` })); }, () => setNotice('Could not access location. Please enter your address manually.'), { enableHighAccuracy: true, timeout: 10000 }); }}><LocateFixed size={15} /> Use my current location</button><label>Landmark (optional)<input value={customer.landmark} onChange={(e) => setCustomer({ ...customer, landmark: e.target.value })} placeholder="Near a shop, school, or landmark" /></label><label>Order note (optional)<textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any delivery instructions?" /></label><div className="checkout-total"><div><span>{cartCount} items · Total payable</span><strong>{money(total)}</strong></div><span className="cod-pill"><BanknoteIcon /> Cash on delivery</span></div><button className="btn btn-primary full-btn" disabled={busy || cart.length === 0}>{busy ? 'Placing your order…' : 'Place COD order'} <ArrowRight size={17} /></button><p className="form-privacy"><ShieldCheck size={14} /> Your details are used to fulfil this order.</p></form></section></div>}
+
+    {trackOpen && <div className="overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setTrackOpen(false); }}><section className="modal track-modal"><div className="modal-head"><div><span className="eyebrow">ORDER UPDATES</span><h2>Track your order</h2><p>Enter the tracking code shared after checkout.</p></div><button className="icon-btn" onClick={() => setTrackOpen(false)} aria-label="Close tracking"><X /></button></div><form className="tracking-form" onSubmit={trackOrder}><input required value={trackCode} onChange={(e) => setTrackCode(e.target.value.toUpperCase())} placeholder="e.g. GPB-A1B2C3" aria-label="Tracking code" /><button className="btn btn-primary" type="submit">Track <ArrowRight size={16} /></button></form>{trackError && <div className="notice error compact"><CircleX size={17} /><span>{trackError}</span></div>}{trackedOrder && <OrderTracking order={trackedOrder} />}{placedOrder && trackedOrder?.trackingCode === placedOrder.trackingCode && <div className="tracking-code-box"><span>Your tracking code</span><strong>{placedOrder.trackingCode}</strong><button className="text-btn" onClick={() => navigator.clipboard?.writeText(placedOrder.trackingCode)}>Copy code</button></div>}<p className="track-help">Need help with an order? Please contact the store directly.</p></section></div>}
+  </div>;
 }
 
-const rootElement =
-  document.getElementById("root");
-
-if (!rootElement) {
-  throw new Error(
-    'Root element "#root" not found.'
-  );
+function AdminDashboard(props) {
+  const { storeSettings, setStoreSettings, orders, setOrders, activeOrders, adminError, setAdminError, adminAllowed, setAdminAllowed, adminUser, adminEmail, setAdminEmail, adminPassword, setAdminPassword, adminBusy, setAdminBusy, loginAdmin, changeStatus, products, setProducts, onBack } = props;
+  const [tab, setTab] = useState('Orders');
+  const [settingsDraft, setSettingsDraft] = useState(storeSettings);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [productQuery, setProductQuery] = useState('');
+  const [editing, setEditing] = useState(null);
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [importMessage, setImportMessage] = useState('');
+  const blankProduct = { id: '', name: '', category: 'Atta & Rice', size: '', price: '', mrp: '', stock: 0, image: '', images: [], tag: 'Everyday essential', active: true };
+  const [draft, setDraft] = useState(blankProduct);
+  const [mediaBusy, setMediaBusy] = useState(false);
+  const categories = ['Atta & Rice', 'Oil & Ghee', 'Pulses & Dal', 'Spices', 'Snacks & Packaged', 'Personal Care', 'Household', 'Other'];
+  const activeProducts = products.filter((p) => p.active !== false);
+  async function saveDraft(e) {
+    e.preventDefault(); setSavingProduct(true); setAdminError('');
+    try { const saved = await saveProduct({ ...draft, id: draft.id || `gpb-${Date.now().toString(36)}` }); setProducts((items) => [saved, ...items.filter((p) => p.id !== saved.id)]); setDraft(blankProduct); setEditing(null); setImportMessage('Product saved successfully.'); }
+    catch (err) { setAdminError(err.message || 'Could not save product.'); }
+    finally { setSavingProduct(false); }
+  }
+  async function chooseMedia(e) {
+    const files = Array.from(e.target.files || []); if (!files.length) return; setMediaBusy(true);
+    try { const urls = []; for (const file of files.slice(0, 3)) urls.push(await uploadProductMedia(file, draft.id || `gpb-${Date.now().toString(36)}`)); setDraft((d) => ({ ...d, image: d.image || urls[0], images: [...new Set([...(d.images || []), ...urls])].slice(0, 3) })); setImportMessage(`${urls.length} image(s) uploaded. Save the product to keep them.`); }
+    catch (err) { setAdminError(err.message || 'Upload failed.'); } finally { setMediaBusy(false); e.target.value = ''; }
+  }
+  async function importFile(e) {
+    const file = e.target.files?.[0]; if (!file) return; setImportMessage(''); setAdminError('');
+    try {
+      let rows = [];
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'json') rows = JSON.parse(await file.text());
+      else if (['csv','tsv','txt'].includes(ext)) {
+        const text = await file.text(); const delim = ext === 'tsv' || text.split('\n')[0].includes('\t') ? '\t' : ',';
+        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter((line) => line.trim());
+        const headers = (lines.shift() || '').split(delim).map((h) => h.trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
+        rows = lines.map((line) => { const vals = line.split(delim).map((v) => v.trim().replace(/^"|"$/g, '')); return Object.fromEntries(headers.map((h,i) => [h, vals[i] || ''])); });
+      } else if (['xlsx','xls'].includes(ext)) {
+        const XLSX = await import('xlsx'); const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' }); rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '' });
+      } else if (ext === 'pdf') {
+        const pdfjs = await import('pdfjs-dist'); pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+        const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise; let text = '';
+        for (let n=1; n<=pdf.numPages; n++) { const page = await pdf.getPage(n); const content = await page.getTextContent(); text += content.items.map((item) => item.str).join(' ') + '\n'; }
+        rows = text.split(/\r?\n/).map((line) => { const parts = line.split(/\t|\s{2,}|\|/).map((v) => v.trim()).filter(Boolean); return { name: parts[0], size: parts[1] || '1 unit', price: parts[2] || '', mrp: parts[3] || parts[2] || '', category: parts[4] || 'Other' }; }).filter((r) => r.name && Number.isFinite(Number(r.price)) && Number(r.price) >= 0);
+      } else throw new Error('Use CSV, TSV, Excel (.xlsx/.xls), JSON or text-based PDF.');
+      if (!Array.isArray(rows)) throw new Error('The file must contain a list of product rows.');
+      const norm = (row, i) => { const obj = {}; for (const [k,v] of Object.entries(row)) obj[String(k).toLowerCase().replace(/[^a-z0-9]/g,'')] = v; const get = (...keys) => { for (const k of keys) if (obj[k] !== undefined && obj[k] !== '') return obj[k]; return ''; }; const name = String(get('name','product','productname','item','itemname')).trim(); const price = Number(get('price','sellingprice','saleprice','rate')); const mrp = Number(get('mrp','listprice','maximumretailprice') || price); return { id: String(get('id','productid') || `import-${Date.now().toString(36)}-${i}`), name, category: String(get('category','type') || 'Other'), size: String(get('size','weight','quantity','pack') || '1 unit'), price, mrp, stock: Math.max(0, Number(get('stock','quantityinstock','inventory')) || 0), image: String(get('image','imageurl','photo') || ''), tag: String(get('tag','offer') || 'Imported'), active: true }; };
+      const cleaned = rows.map(norm).filter((r) => r.name && Number.isFinite(r.price) && r.price >= 0 && Number.isFinite(r.mrp) && r.mrp >= r.price);
+      if (!cleaned.length) throw new Error('No valid products found. Include columns like name, size, price, mrp, category, stock. PDF must contain selectable text, not just a scanned image.');
+      let count = 0; for (const row of cleaned) { await saveProduct(row); count++; }
+      setImportMessage(`Imported ${count} valid products. Check product names, prices and stock before publishing.`);
+    } catch (err) { setAdminError(err.message || 'Import failed.'); }
+    finally { e.target.value = ''; }
+  }
+  function exportProducts() {
+    const headers = ['id','name','category','size','price','mrp','stock','image','tag','active'];
+    const csv = [headers.join(','), ...products.map((p) => headers.map((h) => `"${String(p[h] ?? '').replaceAll('"','""')}"`).join(','))].join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = 'grihini-products.csv'; a.click(); URL.revokeObjectURL(url);
+  }
+  return <main className="wrap admin-page">
+    <div className="admin-heading"><div><div className="eyebrow">STORE MANAGEMENT</div><h1>Admin dashboard</h1><p>Manage orders, catalogue, inventory, offers and product imports.</p></div><button className="btn btn-ghost" onClick={onBack}><ArrowLeft size={16} /> Back to store</button></div>
+    {isDemoMode && <div className="notice warning"><ShieldCheck size={18} /><div><strong>Local demo mode</strong><p>Data is saved only in this browser. Configure Supabase to enable secure admin login, shared catalogue, file storage and live updates across devices.</p></div></div>}
+    {adminError && <div className="notice error"><CircleX size={18} /><span>{adminError}</span></div>}
+    {isDemoMode && !adminAllowed ? <div className="admin-card"><div className="demo-admin-icon"><ClipboardList size={27} /></div><h2>Demo store management</h2><p>Test order processing and product management locally. This is not secure for public use.</p><button className="btn btn-primary" onClick={() => setAdminAllowed(true)}>Open demo dashboard <ArrowRight size={17} /></button></div> : !isDemoMode && !adminUser ? <form className="admin-card login-card" onSubmit={loginAdmin}><div className="demo-admin-icon"><LogIn size={27} /></div><h2>Sign in to your store</h2><p>Only approved store administrators can view or update customer orders and products.</p><label>Admin email<input required type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="Admin email" /></label><label>Password<input required type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="Password" /></label><button className="btn btn-primary" disabled={adminBusy}>{adminBusy ? 'Signing in…' : 'Sign in securely'} <ArrowRight size={17} /></button></form> : !adminAllowed ? <div className="admin-card"><h2>Admin permission required</h2><p>This account is not assigned the admin role in Supabase. Follow SETUP-HI.md to grant the admin role.</p></div> : <>
+      <div className="admin-stats"><div className="stat-card"><span>Total orders</span><strong>{orders.length}</strong><small>All received orders</small></div><div className="stat-card"><span>Needs attention</span><strong>{activeOrders.length}</strong><small>Not yet completed</small></div><div className="stat-card"><span>Live products</span><strong>{activeProducts.length}</strong><small>Visible to customers</small></div><div className="stat-card"><span>Delivered COD sales</span><strong>{money(orders.filter((o) => o.status === 'Delivered').reduce((s,o)=>s+o.total,0))}</strong><small>Delivered order value</small></div></div>
+      <div className="admin-tabs">{['Orders','Products','Storefront','Import / Export','Reports'].map((t) => <button key={t} className={`admin-tab ${tab===t?'active':''}`} onClick={() => { setTab(t); if (t==='Storefront') setSettingsDraft(storeSettings); }}>{t==='Orders'?<ClipboardList size={16}/>:t==='Products'?<PackageCheck size={16}/>:t==='Storefront'?<ImagePlus size={16}/>:t==='Import / Export'?<FileUp size={16}/>:<BarChart3 size={16}/>} {t}</button>)}</div>
+      {tab === 'Orders' && <><div className="admin-list-head"><div><h2>Customer orders</h2><p>Accept, reject, pack, dispatch and deliver.</p></div><button className="btn btn-ghost" onClick={() => subscribeOrders(setOrders, (e) => setAdminError(e.message))}><RefreshCw size={16}/> Refresh</button></div>{orders.length ? <div className="orders-list">{orders.map((order)=><AdminOrder key={order.trackingCode} order={order} onChange={changeStatus}/>)}</div> : <div className="empty-state"><PackageCheck size={42}/><h3>No orders yet</h3><p>Customer orders appear here when checkout is completed.</p></div>}</>}
+      {tab === 'Products' && <div className="catalog-admin"><div className="admin-list-head"><div><h2>Product catalogue</h2><p>Add or update products, prices, stock and media.</p></div><button className="btn btn-ghost" onClick={() => { setDraft(blankProduct); setEditing(null); }}><PackagePlus size={16}/> New product</button></div>
+        <form className="product-editor" onSubmit={saveDraft}><h3>{editing ? 'Edit product' : 'Add product'}</h3><div className="form-grid"><label>Product name *<input required value={draft.name} onChange={(e)=>setDraft({...draft,name:e.target.value})}/></label><label>Category<select value={draft.category} onChange={(e)=>setDraft({...draft,category:e.target.value})}>{categories.map((c)=><option key={c}>{c}</option>)}</select></label><label>Pack size *<input required value={draft.size} onChange={(e)=>setDraft({...draft,size:e.target.value})} placeholder="500 g / 1 L"/></label><label>Selling price (₹) *<input required type="number" min="0" step="0.01" value={draft.price} onChange={(e)=>setDraft({...draft,price:e.target.value})}/></label><label>MRP (₹) *<input required type="number" min="0" step="0.01" value={draft.mrp} onChange={(e)=>setDraft({...draft,mrp:e.target.value})}/></label><label>Stock quantity<input type="number" min="0" value={draft.stock} onChange={(e)=>setDraft({...draft,stock:e.target.value})}/></label><label>Badge / offer label<input value={draft.tag} onChange={(e)=>setDraft({...draft,tag:e.target.value})} placeholder="Best seller / Offer"/></label><label>Primary image URL<input value={draft.image} onChange={(e)=>setDraft({...draft,image:e.target.value})} placeholder="https://…"/></label></div><label className="upload-label"><ImagePlus size={17}/> Upload up to 3 product photos<input type="file" accept="image/*" multiple onChange={chooseMedia}/></label>{mediaBusy&&<p>Uploading media…</p>}{draft.image && <div className="media-preview">{draft.image.startsWith('data:video') || /\.mp4($|\?)/i.test(draft.image) ? <video src={draft.image} controls/> : <img src={draft.image} alt="Product preview"/>}</div>}<label className="inline-check"><input type="checkbox" checked={draft.active!==false} onChange={(e)=>setDraft({...draft,active:e.target.checked})}/> Visible in customer store</label><div className="editor-actions"><button className="btn btn-primary" disabled={savingProduct||mediaBusy}>{savingProduct?'Saving…':editing?'Save changes':'Add product'}</button>{editing&&<button type="button" className="btn btn-ghost" onClick={()=>{setDraft(blankProduct);setEditing(null);}}>Cancel edit</button>}</div></form>
+        <label className="product-search">Search products<input value={productQuery} onChange={(e)=>setProductQuery(e.target.value)} placeholder="Filter by product name or category"/></label><div className="product-admin-list">{products.filter((p)=>`${p.name} ${p.category}`.toLowerCase().includes(productQuery.toLowerCase())).map((p)=><div className="product-admin-row" key={p.id}><img src={p.image} alt=""/><div className="product-admin-copy"><strong>{p.name}</strong><small>{p.category} · {p.size} · Stock {p.stock ?? 0}</small><span>{money(p.price)} <del>{money(p.mrp)}</del> {p.active===false?'· Hidden':''}</span></div><button className="icon-btn" title="Edit product" onClick={()=>{setDraft({...p,price:String(p.price),mrp:String(p.mrp),stock:String(p.stock??0)});setEditing(p.id);window.scrollTo({top:0,behavior:'smooth'});}}><Pencil size={16}/></button><button className="icon-btn danger-icon" title="Delete product" onClick={async()=>{if(!window.confirm(`Delete ${p.name}?`))return;try{await removeProduct(p.id, p);setProducts((items)=>items.filter((x)=>x.id!==p.id));}catch(err){setAdminError(err.message);}}}><Trash2 size={16}/></button></div>)}</div>
+      </div>}
+      {tab === 'Storefront' && <section className="storefront-editor"><div className="admin-list-head"><div><h2>Homepage & promotions</h2><p>Change the wide hero image and promotional banner shown to customers.</p></div><span className="status-pill accepted">Live storefront</span></div><form className="product-editor" onSubmit={async(e)=>{e.preventDefault();setSavingSettings(true);setAdminError('');try{const saved=await saveStoreSettings(settingsDraft);setStoreSettings(saved);setImportMessage('Homepage settings saved. Customers will see the updated banner after refresh.');}catch(err){setAdminError(err.message);}finally{setSavingSettings(false);}}}><h3>Hero advertisement</h3><label>Hero / landscape image URL<input value={settingsDraft.heroImage || ''} onChange={(e)=>setSettingsDraft({...settingsDraft,heroImage:e.target.value})} placeholder="https://…"/></label><label className="upload-label"><ImagePlus size={17}/> Upload hero image<input type="file" accept="image/*" onChange={async(e)=>{const file=e.target.files?.[0];if(!file)return;setMediaBusy(true);try{const url=await uploadProductMedia(file,'storefront');setSettingsDraft((d)=>({...d,heroImage:url}));setImportMessage('Hero image uploaded. Save settings to publish it.');}catch(err){setAdminError(err.message);}finally{setMediaBusy(false);e.target.value='';}}}/></label>{settingsDraft.heroImage && <div className="media-preview hero-preview"><img src={settingsDraft.heroImage} alt="Homepage hero preview"/></div>}<label>Promotion title<input value={settingsDraft.promoTitle || ''} onChange={(e)=>setSettingsDraft({...settingsDraft,promoTitle:e.target.value})} placeholder="Fresh offers for your home"/></label><label>Promotion subtitle<input value={settingsDraft.promoText || ''} onChange={(e)=>setSettingsDraft({...settingsDraft,promoText:e.target.value})} placeholder="Everyday essentials, close to home."/></label><label>Promotional banner image URL<input value={settingsDraft.promoImage || ''} onChange={(e)=>setSettingsDraft({...settingsDraft,promoImage:e.target.value})} placeholder="Optional image URL"/></label><label className="upload-label"><ImagePlus size={17}/> Upload promotional banner<input type="file" accept="image/*" onChange={async(e)=>{const file=e.target.files?.[0];if(!file)return;setMediaBusy(true);try{const url=await uploadProductMedia(file,'promo');setSettingsDraft((d)=>({...d,promoImage:url}));setImportMessage('Promo image uploaded. Save settings to publish it.');}catch(err){setAdminError(err.message);}finally{setMediaBusy(false);e.target.value='';}}}/></label>{settingsDraft.promoImage && <div className="media-preview hero-preview"><img src={settingsDraft.promoImage} alt="Promotion preview"/></div>}<div className="editor-actions"><button className="btn btn-primary" disabled={savingSettings||mediaBusy}>{savingSettings?'Saving…':'Save homepage settings'}</button></div>{importMessage && <div className="notice success"><Check size={17}/>{importMessage}</div>}</form><div className="storefront-help"><Sparkles size={18}/><span>Tip: use a wide landscape image (around 1600 × 900 px) for the hero. The image is public on the store; do not upload private documents.</span></div></section>}
+      {tab === 'Import / Export' && <section className="import-panel"><h2>Bulk product import</h2><p>Upload CSV, TSV, Excel (.xlsx/.xls), JSON, or a text-based PDF product list. Scanned/image-only PDFs need OCR first.</p><div className="import-columns"><label className="upload-drop"><Upload size={27}/><strong>Choose a product file</strong><span>CSV · Excel · JSON · PDF · up to 12 MB</span><input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls,.json,.pdf" onChange={importFile}/></label><div className="import-template"><strong>Required columns</strong><code>name, category, size, price, mrp, stock, image, tag</code><p>Column names may use common variations such as Product Name, Selling Price, MRP, Quantity and Image URL.</p><button className="btn btn-ghost" onClick={exportProducts}><Download size={16}/> Export current products (CSV)</button><button className="btn btn-ghost" onClick={()=>{const sample='name,category,size,price,mrp,stock,image,tag\nAashirvaad Atta,Atta & Rice,5 kg,285,310,20,,Daily essential\n';const url=URL.createObjectURL(new Blob([sample],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download='grihini-product-template.csv';a.click();URL.revokeObjectURL(url);}}><Download size={16}/> Download template</button></div></div>{importMessage&&<div className="notice success"><Check size={17}/>{importMessage}</div>}</section>}
+      {tab === 'Reports' && <section className="reports-panel"><h2>Store reports</h2><div className="admin-stats"><div className="stat-card"><span>Placed / active</span><strong>{activeOrders.length}</strong></div><div className="stat-card"><span>Rejected / cancelled</span><strong>{orders.filter((o)=>['Rejected','Cancelled'].includes(o.status)).length}</strong></div><div className="stat-card"><span>Delivered orders</span><strong>{orders.filter((o)=>o.status==='Delivered').length}</strong></div><div className="stat-card"><span>Delivered value</span><strong>{money(orders.filter((o)=>o.status==='Delivered').reduce((s,o)=>s+o.total,0))}</strong></div></div><button className="btn btn-ghost" onClick={()=>{const csv=['trackingCode,createdAt,customer,phone,status,total,paymentMethod',...orders.map(o=>[o.trackingCode,o.createdAt,o.customer?.name,o.customer?.phone,o.status,o.total,o.paymentMethod].map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(','))].join('\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download='grihini-orders-report.csv';a.click();URL.revokeObjectURL(url);}}><Download size={16}/> Export order report</button></section>}
+      <button className="btn btn-ghost signout" onClick={async()=>{await adminSignOut();setAdminAllowed(false);}}><LogOut size={16}/> Sign out</button>
+    </>}
+  </main>;
 }
 
-ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
-    <Root />
-  </React.StrictMode>
-);
+function ProductImageCarousel({ product, wishlist, setWishlist, cart, updateQuantity }) {
+  const images = [...new Set([...(Array.isArray(product.images) ? product.images : []), product.image].filter(Boolean))].slice(0, 3);
+  const [index, setIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState(null);
+  const saved = wishlist.includes(product.id);
+  const added = cart.some((item) => item.id === product.id);
+  const move = (direction) => setIndex((current) => (current + direction + images.length) % images.length);
+  return <><div className="product-photo product-carousel" onTouchStart={(e)=>setTouchStart(e.touches[0].clientX)} onTouchEnd={(e)=>{if(touchStart===null)return;const delta=e.changedTouches[0].clientX-touchStart;if(Math.abs(delta)>35&&images.length>1)move(delta<0?1:-1);setTouchStart(null);}}><img key={images[index] || product.id} src={images[index] || product.image} alt={product.name} loading="lazy" onError={(e)=>{e.currentTarget.src='https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=700&q=80';}}/><span className="product-tag">{product.tag}</span><button className={`wishlist-toggle ${saved?'saved':''}`} onClick={()=>setWishlist((items)=>saved?items.filter((id)=>id!==product.id):[...items,product.id])} aria-label={`Toggle wishlist for ${product.name}`}><Heart size={17} fill={saved?'currentColor':'none'}/></button><button className={`quick-add ${added?'added':''}`} onClick={()=>updateQuantity(product,1)} aria-label={`Add ${product.name} to cart`}>{added?<Check size={19}/>:<Plus size={20}/>}</button>{images.length>1 && <><button className="image-swipe-arrow prev" onClick={()=>move(-1)} aria-label="Previous product photo"><ChevronLeft size={17}/></button><button className="image-swipe-arrow next" onClick={()=>move(1)} aria-label="Next product photo"><ChevronRight size={17}/></button><div className="image-dots">{images.map((src,i)=><button key={src} aria-label={`Show photo ${i+1}`} className={i===index?'active':''} onClick={()=>setIndex(i)}/>)}</div></>}</div><div className="product-info"><span className="product-category">{product.category}</span><h3>{product.name}</h3><p className="product-size">{product.size}</p><div className="product-buy"><div><strong>{money(product.price)}</strong><del>{money(product.mrp)}</del></div><button className="add-button" onClick={()=>updateQuantity(product,1)}>{added?'Add more':'Add to cart'}</button></div></div></>;
+}
+
+function BanknoteIcon() { return <span className="cod-symbol">₹</span>; }
+
+function OrderTracking({ order }) {
+  const stages = ['Placed', 'Accepted', 'Packed', 'Out for delivery', 'Delivered'];
+  const currentIndex = stages.indexOf(order.status);
+  const rejected = ['Rejected', 'Cancelled'].includes(order.status);
+  return <div className="tracking-result"><div className="tracking-result-head"><div><span className="eyebrow">ORDER {order.trackingCode}</span><h3>{order.status === 'Delivered' ? 'Your order has arrived!' : rejected ? 'Order update' : 'We’re on it.'}</h3><p>Placed {new Date(order.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p></div><span className={`status-pill ${order.status.toLowerCase().replaceAll(' ', '-')}`}>{order.status}</span></div>{rejected ? <div className="rejected-note"><CircleX size={20} /> This order was {order.status.toLowerCase()}. Please contact the store if you need help.</div> : <div className="timeline">{stages.map((stage, index) => { const done = index <= currentIndex; const active = index === currentIndex; const history = (order.statusHistory || []).find((h) => h.status === stage); return <div className={`timeline-step ${done ? 'done' : ''} ${active ? 'current' : ''}`} key={stage}><div className="timeline-marker">{done ? <Check size={14} /> : <span>{index + 1}</span>}</div><div className="timeline-copy"><strong>{stage}</strong><small>{history ? `${history.note || stage} · ${new Date(history.at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}` : stage === 'Delivered' ? 'Your order will be marked delivered here.' : 'Waiting for the previous step.'}</small></div></div>; })}</div>}<div className="tracking-order-summary"><div><strong>{order.customer.name}</strong><span>{order.customer.address}</span></div><div><span>COD total</span><strong>{money(order.total)}</strong></div></div><div className="tracking-items">{order.items.map((item) => <div key={item.id}><span>{item.name} × {item.quantity}</span><strong>{money(item.price * item.quantity)}</strong></div>)}</div></div>;
+}
+
+function AdminOrder({ order, onChange }) {
+  const [expanded, setExpanded] = useState(false);
+  const nextStatus = { Placed: 'Accepted', Accepted: 'Packed', Packed: 'Out for delivery', 'Out for delivery': 'Delivered' }[order.status];
+  const rejected = ['Rejected', 'Cancelled'].includes(order.status);
+  return <article className="admin-order"><button className="admin-order-summary" onClick={() => setExpanded(!expanded)}><div className="admin-order-main"><span className="order-id">{order.trackingCode}</span><strong>{order.customer.name}</strong><small>{new Date(order.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</small></div><div className="admin-order-right"><strong>{money(order.total)}</strong><span className={`status-pill ${order.status.toLowerCase().replaceAll(' ', '-')}`}>{order.status}</span><ChevronDown className={expanded ? 'rotate' : ''} size={18} /></div></button>{expanded && <div className="admin-order-detail"><div className="admin-detail-grid"><div><span>Phone</span><strong>{order.customer.phone}</strong></div><div><span>Payment</span><strong>Cash on delivery</strong></div><div className="wide"><span>Delivery address</span><strong>{order.customer.address}{order.customer.landmark ? ` · ${order.customer.landmark}` : ''}</strong></div></div>{order.notes && <p className="order-note"><strong>Customer note:</strong> {order.notes}</p>}<div className="admin-order-items">{order.items.map((item) => <div key={item.id}><span>{item.name} × {item.quantity}</span><strong>{money(item.price * item.quantity)}</strong></div>)}<div><span>Delivery fee</span><strong>{order.deliveryFee === 0 ? 'FREE' : money(order.deliveryFee)}</strong></div></div><div className="order-actions">{nextStatus && <button className="btn btn-primary" onClick={() => onChange(order, nextStatus)}>{nextStatus === 'Accepted' ? <Check size={16} /> : nextStatus === 'Delivered' ? <PackageCheck size={16} /> : <ArrowRight size={16} />}{nextStatus === 'Accepted' ? 'Accept order' : nextStatus === 'Packed' ? 'Mark packed' : nextStatus === 'Out for delivery' ? 'Dispatch order' : 'Mark delivered'}</button>}{order.status === 'Placed' && <button className="btn btn-danger" onClick={() => onChange(order, 'Rejected')}><CircleX size={16} /> Reject</button>}<span className="status-hint">{rejected ? 'This order is closed.' : order.status === 'Delivered' ? 'Order completed.' : 'Customer tracking updates when you change status.'}</span></div></div>}</article>;
+}
+
+createRoot(document.getElementById('root')).render(<React.StrictMode><App /></React.StrictMode>);
