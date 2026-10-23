@@ -1,30 +1,30 @@
 :root {
-  --green-950: #063526;
-  --green-900: #07543d;
-  --green-800: #087653;
-  --green-700: #0a9364;
-  --green-600: #12ad76;
-  --green-500: #29c88a;
+  --green-950: #0f172a;
+  --green-900: #0f172a;
+  --green-800: #1e3a8a;
+  --green-700: #1e3a8a;
+  --green-600: #1e3a8a;
+  --green-500: #3b82f6;
 
-  --mint: #c8f6dc;
-  --mint-2: #e9f9f0;
+  --mint: #dbeafe;
+  --mint-2: #eff6ff;
 
-  --cream: #fffdf7;
-  --bg: #f4f8f5;
+  --cream: #f8fafc;
+  --bg: #f8fafc;
   --white: #ffffff;
 
-  --text: #12271f;
-  --muted: #72847b;
+  --text: #0f172a;
+  --muted: #64748b;
 
-  --line: #dcebe3;
+  --line: #e2e8f0;
 
   --shadow:
     0 12px 35px
-    rgba(9, 72, 47, .08);
+    rgba(30, 58, 138, .08);
 
   --shadow-big:
     0 30px 90px
-    rgba(4, 55, 37, .20);
+    rgba(15, 23, 42, .20);
 }
 
 
@@ -48,8 +48,8 @@ body {
   background:
     linear-gradient(
       180deg,
-      #f9fcfa,
-      #edf6f1
+      #f8fafc,
+      #eff6ff
     );
 
   color: var(--text);
@@ -120,8 +120,8 @@ img {
   background:
     radial-gradient(
       circle at 50% 20%,
-      #e7f9ef,
-      #f7faf8 60%
+      #eff6ff,
+      #f8fafc 60%
     );
 
   color:
@@ -204,8 +204,8 @@ img {
     ),
     linear-gradient(
       135deg,
-      #effaf4,
-      #fffaf0
+      #f8fafc,
+      #f8fafc
     );
 }
 
@@ -234,7 +234,7 @@ img {
 
   box-shadow:
     0 35px 90px
-    rgba(26,90,58,.14);
+    rgba(59,130,246,.14);
 
   backdrop-filter:
     blur(18px);
@@ -265,8 +265,8 @@ img {
   background:
     linear-gradient(
       135deg,
-      #d5f9e3,
-      #9ceac0
+      #dbeafe,
+      #dbeafe
     );
 
   font-size:
@@ -347,7 +347,7 @@ img {
     12px;
 
   background:
-    #edf5f1;
+    #f8fafc;
 }
 
 .login-tabs button {
@@ -423,7 +423,7 @@ img {
 
   border:
     1px solid
-    #d7e7df;
+    #dbeafe;
 
   border-radius:
     12px;
@@ -526,7 +526,7 @@ img {
 
   border:
     1px solid
-    #dce8e2;
+    #e2e8f0;
 
   border-radius:
     12px;
@@ -604,7 +604,7 @@ img {
 
   border:
     1px solid
-    #d7e7df;
+    #dbeafe;
 
   border-radius:
     12px;
@@ -676,8 +676,8 @@ img {
   background:
     linear-gradient(
       135deg,
-      #70d99b,
-      #c7f3d7
+      #3b82f6,
+      #dbeafe
     );
 }
 
@@ -810,10 +810,10 @@ img {
     12px;
 
   background:
-    #aef0c7;
+    #dbeafe;
 
   color:
-    #06442f;
+    #0f172a;
 
   font-size:
     19px;
@@ -835,7 +835,7 @@ img {
     3px;
 
   color:
-    #a9c8bb;
+    #e2e8f0;
 
   font-size:
     7px;
@@ -872,7 +872,7 @@ img {
     transparent;
 
   color:
-    #cde4da;
+    #dbeafe;
 
   font-size:
     11px;
@@ -997,10 +997,10 @@ img {
 
 .profile-button {
   background:
-    #baf2cf;
+    #dbeafe;
 
   color:
-    #07543d;
+    #0f172a;
 }
 
 .cart-button b {
@@ -1029,10 +1029,10 @@ img {
     50%;
 
   background:
-    #b7ffd0;
+    #dbeafe;
 
   color:
-    #063526;
+    #0f172a;
 
   font-size:
     8px;
@@ -1077,8 +1077,8 @@ img {
     ),
     linear-gradient(
       135deg,
-      #063e2c,
-      #087653
+      #0f172a,
+      #1e3a8a
     );
 }
 
@@ -1118,7 +1118,7 @@ img {
 
 .hero-text > span {
   color:
-    #b9f4cf;
+    #bfdbfe;
 
   font-size:
     10px;
@@ -1179,10 +1179,10 @@ img {
     11px;
 
   background:
-    #b9f5cf;
+    #bfdbfe;
 
   color:
-    #07543d;
+    #0f172a;
 
   font-size:
     12px;
@@ -1376,7 +1376,7 @@ img {
     translateY(-3px);
 
   border-color:
-    #8ed8af;
+    #dbeafe;
 
   box-shadow:
     var(--shadow);
@@ -1399,7 +1399,7 @@ img {
     50%;
 
   background:
-    #edf8f1;
+    #f8fafc;
 }
 
 .category-image img {
@@ -1421,7 +1421,7 @@ img {
     30px;
 
   color:
-    #27483a;
+    #334155;
 
   font-size:
     10px;
@@ -1463,8 +1463,8 @@ img {
   background:
     linear-gradient(
       135deg,
-      #07543d,
-      #10a46e
+      #0f172a,
+      #1e3a8a
     );
 
   box-shadow:
@@ -1473,7 +1473,7 @@ img {
 
 .deal-banner span {
   color:
-    #b9f4cf;
+    #bfdbfe;
 
   font-size:
     9px;
@@ -1595,8 +1595,8 @@ img {
   background:
     linear-gradient(
       180deg,
-      #f9fcfa,
-      #f0f7f3
+      #f8fafc,
+      #f8fafc
     );
 
   cursor:
@@ -1642,7 +1642,7 @@ img {
     7px;
 
   background:
-    #ddf8e8;
+    #eff6ff;
 
   color:
     var(--green-700);
@@ -1734,7 +1734,7 @@ img {
     5px 0;
 
   color:
-    #1a372b;
+    #0f172a;
 
   font-size:
     12px;
@@ -1797,7 +1797,7 @@ img {
 
 .stock.in {
   color:
-    #0b8a5c;
+    #1e3a8a;
 }
 
 .stock.out {
@@ -1844,7 +1844,7 @@ img {
 
   border:
     1px dashed
-    #cbded3;
+    #e2e8f0;
 
   border-radius:
     17px;
@@ -1868,7 +1868,7 @@ img {
 
   border:
     3px solid
-    #dcece4;
+    #dbeafe;
 
   border-top-color:
     var(--green-600);
@@ -1899,8 +1899,8 @@ img {
   background:
     linear-gradient(
       180deg,
-      #eaf7f0,
-      #e1f2e9
+      #eff6ff,
+      #f8fafc
     );
 
   text-align:
@@ -2043,7 +2043,7 @@ img {
     translateY(-2px);
 
   border-color:
-    #9ddbb9;
+    #dbeafe;
 
   box-shadow:
     var(--shadow);
@@ -2069,7 +2069,7 @@ img {
     12px;
 
   background:
-    #edf9f2;
+    #eff6ff;
 }
 
 .order-list-main {
@@ -2147,7 +2147,7 @@ img {
     999px;
 
   background:
-    #e8f8ef;
+    #f8fafc;
 
   color:
     var(--green-700);
@@ -2241,7 +2241,7 @@ img {
     12px;
 
   background:
-    #edf9f2;
+    #eff6ff;
 
   color:
     var(--green-700);
@@ -2294,10 +2294,10 @@ img {
     20px;
 
   background:
-    #052f22;
+    #0f172a;
 
   color:
-    #a9c5b9;
+    #e2e8f0;
 
   font-size:
     10px;
@@ -2384,7 +2384,7 @@ img {
     column;
 
   background:
-    #fbfdfc;
+    #f8fafc;
 
   box-shadow:
     -25px 0 70px
@@ -2519,7 +2519,7 @@ img {
     10px;
 
   background:
-    #eff7f3;
+    #f8fafc;
 }
 
 .cart-product-image img {
@@ -2653,7 +2653,7 @@ img {
     0;
 
   background:
-    #e7f8ee;
+    #f8fafc;
 
   color:
     var(--green-700);
@@ -2776,7 +2776,7 @@ img {
     16px;
 
   background:
-    #f2f8f4;
+    #f8fafc;
 
   font-size:
     70px;
@@ -2870,7 +2870,7 @@ img {
     11px;
 
   background:
-    #eaf8f0;
+    #eff6ff;
 
   color:
     var(--green-700);
@@ -2957,7 +2957,7 @@ img {
     12px;
 
   background:
-    #eaf8f0;
+    #eff6ff;
 }
 
 .estimate-icon {
@@ -3173,7 +3173,7 @@ img {
     50%;
 
   background:
-    #d9f8e7;
+    #eff6ff;
 
   color:
     var(--green-700);
@@ -3249,7 +3249,7 @@ img {
     12px;
 
   background:
-    #edf9f2;
+    #eff6ff;
 
   text-align:
     left;
@@ -3296,7 +3296,7 @@ img {
     10px;
 
   background:
-    #f7faf8;
+    #f8fafc;
 }
 
 .success-items strong,
@@ -3385,7 +3385,7 @@ img {
     21px;
 
   background:
-    #fbfdfc;
+    #f8fafc;
 
   box-shadow:
     var(--shadow-big);
@@ -3494,7 +3494,7 @@ img {
     2px;
 
   background:
-    #dce9e3;
+    #e2e8f0;
 
   z-index:
     0;
@@ -3529,7 +3529,7 @@ img {
 
   border:
     2px solid
-    #d7e6df;
+    #e2e8f0;
 
   border-radius:
     50%;
@@ -3625,7 +3625,7 @@ img {
     9px;
 
   background:
-    #f3f9f5;
+    #f8fafc;
 }
 
 .address-box strong {
@@ -3670,7 +3670,7 @@ img {
 
   border:
     1px solid
-    #edf2ef;
+    #f1f5f9;
 
   border-radius:
     9px;
@@ -3699,7 +3699,7 @@ img {
     8px;
 
   background:
-    #f1f7f3;
+    #f8fafc;
 }
 
 .order-item-image img {
@@ -3846,7 +3846,7 @@ img {
     10px;
 
   background:
-    #edf8f2;
+    #f8fafc;
 
   font-size:
     9px;
@@ -4048,7 +4048,7 @@ img {
     12px;
 
   background:
-    #063526;
+    #0f172a;
 
   color:
     white;
@@ -4080,10 +4080,10 @@ img {
     50%;
 
   background:
-    #b9f5cf;
+    #bfdbfe;
 
   color:
-    #07543d;
+    #0f172a;
 }
 
 

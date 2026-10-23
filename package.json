@@ -7,15 +7,15 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test"
+    "test": "node --test tests/orderLogic.test.js tests/catalogUtils.test.js tests/phone.test.js tests/csvUtils.test.js tests/mediaUtils.test.js tests/authUiUtils.test.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.57.0",
     "lucide-react": "^0.468.0",
+    "pdfjs-dist": "^4.10.38",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "xlsx": "^0.18.5",
-    "pdfjs-dist": "^4.10.38",
-    "@supabase/supabase-js": "^2.57.0"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

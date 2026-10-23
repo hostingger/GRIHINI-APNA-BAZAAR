@@ -14,7 +14,7 @@
   width: min(1220px, 100%);
   max-height: calc(100vh - 36px);
   margin: auto;
-  background: #f6f9f7;
+  background: #f8fafc;
   border-radius: 16px;
   overflow: hidden;
   display: flex;
@@ -25,14 +25,14 @@
 .product-editor-header {
   padding: 20px 24px;
   background: #fff;
-  border-bottom: 1px solid #dfe8e3;
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
   gap: 20px;
 }
 
 .editor-label {
-  color: #0c9556;
+  color: #2563eb;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 1.5px;
@@ -40,7 +40,7 @@
 
 .product-editor-header h2 {
   margin: 5px 0 4px;
-  color: #17251d;
+  color: #0f172a;
   font-size: 24px;
 }
 
@@ -53,7 +53,7 @@
 .editor-close-button {
   width: 36px;
   height: 36px;
-  border: 1px solid #d7e3dc;
+  border: 1px solid #e2e8f0;
   border-radius: 9px;
   background: #fff;
   color: #50645a;
@@ -61,14 +61,14 @@
 }
 
 .editor-close-button:hover {
-  background: #edf7f1;
+  background: #eff6ff;
 }
 
 .editor-toolbar {
   min-height: 46px;
   padding: 8px 24px;
-  background: #f8fbf9;
-  border-bottom: 1px solid #e2eae5;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -81,9 +81,9 @@
 }
 
 .editor-history-buttons button {
-  border: 1px solid #d5e2db;
+  border: 1px solid #e2e8f0;
   background: #fff;
-  color: #345347;
+  color: #334155;
   border-radius: 7px;
   padding: 7px 11px;
   font-size: 11px;
@@ -91,8 +91,8 @@
 }
 
 .editor-history-buttons button:hover:not(:disabled) {
-  background: #e9f6ef;
-  border-color: #a9ceb9;
+  background: #eff6ff;
+  border-color: #bfdbfe;
 }
 
 .editor-history-buttons button:disabled {
@@ -107,7 +107,7 @@
 
 .editor-media-message {
   margin-left: auto;
-  color: #0b8d51;
+  color: #2563eb;
   font-size: 10px;
   font-weight: 700;
 }
@@ -120,7 +120,7 @@
 
 .editor-section {
   background: #fff;
-  border: 1px solid #dfe8e3;
+  border: 1px solid #e2e8f0;
   border-radius: 13px;
   padding: 20px;
   margin-bottom: 16px;
@@ -138,8 +138,8 @@
   height: 30px;
   flex-shrink: 0;
   border-radius: 9px;
-  background: #e1f5e9;
-  color: #09814a;
+  background: #dbeafe;
+  color: #1d4ed8;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -149,7 +149,7 @@
 
 .editor-section-title h3 {
   margin: 1px 0 4px;
-  color: #17251d;
+  color: #0f172a;
   font-size: 16px;
 }
 
@@ -186,10 +186,10 @@
 .editor-field textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #d6e2db;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #fff;
-  color: #17251d;
+  color: #0f172a;
   padding: 10px 11px;
   outline: none;
   font: inherit;
@@ -199,8 +199,8 @@
 .editor-field input:focus,
 .editor-field select:focus,
 .editor-field textarea:focus {
-  border-color: #16a463;
-  box-shadow: 0 0 0 3px rgba(22, 164, 99, 0.08);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
 }
 
 .editor-field textarea {
@@ -210,7 +210,7 @@
 
 .price-input {
   height: 39px;
-  border: 1px solid #d6e2db;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #fff;
   display: flex;
@@ -219,8 +219,8 @@
 }
 
 .price-input:focus-within {
-  border-color: #16a463;
-  box-shadow: 0 0 0 3px rgba(22, 164, 99, 0.08);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
 }
 
 .price-input b {
@@ -236,8 +236,8 @@
 }
 
 .website-price {
-  background: #f5fcf8;
-  border-color: #8ed0ad;
+  background: #f8fafc;
+  border-color: #93c5fd;
 }
 
 .media-upload-grid {
@@ -247,10 +247,10 @@
 }
 
 .media-upload-card {
-  border: 1px solid #dfe8e3;
+  border: 1px solid #e2e8f0;
   border-radius: 11px;
   padding: 15px;
-  background: #fbfdfc;
+  background: #f8fafc;
 }
 
 .media-upload-heading {
@@ -268,7 +268,7 @@
 }
 
 .media-upload-heading strong {
-  color: #26382f;
+  color: #0f172a;
   font-size: 12px;
 }
 
@@ -278,7 +278,7 @@
 }
 
 .media-upload-heading > span {
-  color: #0b8d51;
+  color: #2563eb;
   font-size: 10px;
   font-weight: 700;
   white-space: nowrap;
@@ -294,13 +294,13 @@
   position: relative;
   aspect-ratio: 1;
   overflow: hidden;
-  border: 1px solid #d9e4de;
+  border: 1px solid #e2e8f0;
   border-radius: 9px;
-  background: #edf4f0;
+  background: #f1f5f9;
 }
 
 .image-preview.main-image {
-  border: 2px solid #13a360;
+  border: 2px solid #3b82f6;
 }
 
 .image-preview img {
@@ -316,7 +316,7 @@
   left: 5px;
   padding: 3px 5px;
   border-radius: 4px;
-  background: #0c9455;
+  background: #2563eb;
   color: #fff;
   font-size: 7px;
   font-weight: 800;
@@ -350,7 +350,7 @@
 }
 
 .image-actions button:hover:not(:disabled) {
-  background: #0c9455;
+  background: #2563eb;
 }
 
 .image-actions button:disabled {
@@ -362,10 +362,10 @@
 .upload-video-button {
   position: relative;
   overflow: hidden;
-  border: 1px dashed #a9c8b7;
+  border: 1px dashed #e2e8f0;
   border-radius: 9px;
-  background: #f5faf7;
-  color: #128953;
+  background: #f8fafc;
+  color: #2563eb;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -437,7 +437,7 @@
   max-height: 220px;
   border-radius: 8px;
   display: block;
-  background: #07140d;
+  background: #0f172a;
 }
 
 .remove-video-button {
@@ -463,10 +463,10 @@
 
 .editor-toggle {
   min-height: 65px;
-  border: 1px solid #dfe8e3;
+  border: 1px solid #e2e8f0;
   border-radius: 9px;
   padding: 11px;
-  background: #fbfdfc;
+  background: #f8fafc;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -474,14 +474,14 @@
 }
 
 .editor-toggle:hover {
-  border-color: #a9cbb8;
-  background: #f6fbf8;
+  border-color: #e2e8f0;
+  background: #f8fafc;
 }
 
 .editor-toggle input {
   width: 17px;
   height: 17px;
-  accent-color: #11945a;
+  accent-color: #1e3a8a;
 }
 
 .editor-toggle span {
@@ -491,7 +491,7 @@
 }
 
 .editor-toggle strong {
-  color: #26382f;
+  color: #0f172a;
   font-size: 11px;
 }
 
@@ -514,7 +514,7 @@
 .product-editor-footer {
   padding: 14px 24px;
   background: #fff;
-  border-top: 1px solid #dfe8e3;
+  border-top: 1px solid #e2e8f0;
   display: flex;
   justify-content: flex-end;
   gap: 9px;
@@ -530,24 +530,24 @@
 }
 
 .editor-cancel-button {
-  border: 1px solid #d5e1da;
+  border: 1px solid #e2e8f0;
   background: #fff;
   color: #50645a;
 }
 
 .editor-cancel-button:hover {
-  background: #f2f7f4;
+  background: #f8fafc;
 }
 
 .editor-save-button {
   border: 0;
-  background: #108b52;
+  background: #1e3a8a;
   color: #fff;
   min-width: 125px;
 }
 
 .editor-save-button:hover:not(:disabled) {
-  background: #087943;
+  background: #1e3a8a;
 }
 
 .editor-save-button:disabled {

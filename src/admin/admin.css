@@ -5,17 +5,17 @@
 ========================================================= */
 
 :root {
-  --admin-green: #0b6b43;
-  --admin-green-dark: #06452c;
-  --admin-green-light: #087a4f;
-  --admin-green-soft: #e3f6eb;
+  --admin-green: #1e3a8a;
+  --admin-green-dark: #172554;
+  --admin-green-light: #3b82f6;
+  --admin-green-soft: #eff6ff;
 
-  --admin-bg: #f3f6f4;
+  --admin-bg: #f8fafc;
   --admin-card: #ffffff;
 
-  --admin-border: #d9e4de;
+  --admin-border: #e2e8f0;
 
-  --admin-text: #14241d;
+  --admin-text: #0f172a;
   --admin-muted: #52635b;
 
   --admin-warning: #7a5200;
@@ -25,7 +25,7 @@
 
   --admin-shadow:
     0 8px 30px
-    rgba(19, 67, 43, 0.06);
+    rgba(30, 58, 138, 0.06);
 }
 
 /* =========================================================
@@ -92,8 +92,8 @@ button {
   background:
     linear-gradient(
       180deg,
-      #06291a 0%,
-      #041c12 100%
+      #0f172a 0%,
+      #0f172a 100%
     );
 
   color: #ffffff;
@@ -130,8 +130,8 @@ button {
   background:
     linear-gradient(
       135deg,
-      #28ca7b,
-      #0d985b
+      #3b82f6,
+      #2563eb
     );
 
   color: #ffffff;
@@ -218,7 +218,7 @@ button {
 
 .admin-nav button.active {
   background:
-    #18ad69;
+    #3b82f6;
 
   color: #ffffff;
 
@@ -334,7 +334,7 @@ button {
   margin: 0;
 
   color:
-    #10251d;
+    #0f172a;
 
   font-size: 28px;
   font-weight: 850;
@@ -406,7 +406,7 @@ button {
   border-radius: 50%;
 
   background:
-    #dff4e9;
+    #dbeafe;
 
   color:
     var(--admin-green-dark);
@@ -642,7 +642,7 @@ button {
   border-radius: 10px;
 
   background:
-    #fbfdfc;
+    #f8fafc;
 }
 
 .product-search:focus-within {
@@ -651,7 +651,7 @@ button {
 
   box-shadow:
     0 0 0 3px
-    rgba(8, 122, 79, 0.10);
+    rgba(59, 130, 246, 0.10);
 }
 
 .search-icon {
@@ -688,7 +688,7 @@ button {
   border-radius: 7px;
 
   background:
-    #edf2ef;
+    #f1f5f9;
 
   color:
     #42524b;
@@ -740,7 +740,7 @@ button {
   border-radius: 10px;
 
   background:
-    #f6f9f7;
+    #f8fafc;
 
   color:
     var(--admin-text);
@@ -816,15 +816,15 @@ button {
 
   border:
     1px solid
-    #b9ddc8;
+    #dbeafe;
 
   border-radius: 9px;
 
   background:
-    #e3f6eb;
+    #eff6ff;
 
   color:
-    #075c3d;
+    #1e3a8a;
 
   font-size: 10px;
   font-weight: 800;
@@ -861,7 +861,7 @@ button {
   border-radius: 11px;
 
   background:
-    #fbfdfc;
+    #f8fafc;
 
   color:
     var(--admin-text);
@@ -874,10 +874,10 @@ button {
 
 .admin-category-card:hover {
   border-color:
-    #70bd96;
+    #60a5fa;
 
   background:
-    #f2fbf6;
+    #f8fafc;
 
   transform:
     translateY(-2px);
@@ -892,7 +892,7 @@ button {
 
   box-shadow:
     0 0 0 2px
-    rgba(8, 122, 79, 0.08);
+    rgba(59, 130, 246, 0.08);
 }
 
 .admin-category-card.warning {
@@ -1033,7 +1033,7 @@ button {
 
   border-bottom:
     1px solid
-    #e4ebe7;
+    #e2e8f0;
 
   text-align: left;
 
@@ -1042,7 +1042,7 @@ button {
 
 .products-table th {
   background:
-    #f7faf8;
+    #f8fafc;
 
   color:
     #42534b;
@@ -1080,10 +1080,10 @@ button {
     999px;
 
   background:
-    #dff4e9;
+    #dbeafe;
 
   color:
-    #075c3d;
+    #1e3a8a;
 
   font-size: 10px;
   font-weight: 800;
@@ -1255,7 +1255,7 @@ button {
 .admin-dashboard select:focus-visible {
   outline:
     3px solid
-    rgba(8, 122, 79, 0.28);
+    rgba(59, 130, 246, 0.28);
 
   outline-offset:
     2px;
@@ -1264,7 +1264,7 @@ button {
 .admin-dashboard [role="button"]:focus-visible {
   outline:
     3px solid
-    rgba(8, 122, 79, 0.28);
+    rgba(59, 130, 246, 0.28);
 
   outline-offset:
     2px;
@@ -1283,13 +1283,13 @@ button {
 
   border:
     1px solid
-    #b9ddc8;
+    #dbeafe;
 
   background:
-    #e3f6eb;
+    #eff6ff;
 
   color:
-    #075c3d;
+    #1e3a8a;
 
   border-radius:
     10px;
@@ -1403,7 +1403,7 @@ button {
 
   border-bottom:
     1px solid
-    #edf1ef;
+    #f8fafc;
 
   text-align:
     left;
@@ -1444,7 +1444,7 @@ button {
     space-between;
 
   background:
-    #f6f9f7;
+    #f8fafc;
 
   border-radius:
     9px;
@@ -1472,11 +1472,11 @@ button {
     14px;
 
   background:
-    #f7faf8;
+    #f8fafc;
 
   border:
     1px solid
-    #e1ebe6;
+    #f8fafc;
 
   border-radius:
     10px;

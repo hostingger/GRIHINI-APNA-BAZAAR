@@ -1,0 +1,16 @@
+Grihini Apna Bazaar — targeted fixes
+
+VS Code me apne grihini-github-check/src folder ka backup lein.
+Is package ke main.jsx, store.js aur styles.css ko project ke src folder me copy karke existing files replace karein.
+.env.local ko replace/delete na karein.
+
+Fixes:
+- Supabase mode me starter/sample products inject nahi honge.
+- Image ke bina active product publish nahi hoga; aise product hidden rahenge.
+- Products count only visible, active, image-bearing products ko count karega.
+- Duplicate unchanged product refresh callbacks ignore honge, reducing unnecessary UI refreshes.
+- Products fetch hote waqt empty/sample catalogue flash nahi hoga.
+- Product title/detail buttons ko explicit styling milegi (browser-default borders removed).
+- Broken product image URL par unrelated generic fallback loop ki jagah image hide hogi.
+
+After copying, VS Code terminal me npm test aur npm run build chalayein. Preview/local par verify karein; production deploy se pehle approval aur database review zaroor karein.

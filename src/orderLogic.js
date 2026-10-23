@@ -18,7 +18,7 @@ export function makeOrderPayload({ customer, items, subtotal, deliveryFee = 0, n
   const fee = Math.max(0, Number(deliveryFee) || 0);
   return {
     trackingCode,
-    customer: { name: customer.name.trim(), phone: customer.phone.trim(), address: customer.address.trim(), landmark: (customer.landmark || '').trim() },
+    customer: { name: customer.name.trim(), phone: customer.phone.trim(), email: String(customer.email || '').trim().toLowerCase(), address: customer.address.trim(), pincode: String(customer.pincode || '').replace(/\D/g, '').slice(0, 6), coordinates: String(customer.coordinates || '').trim(), landmark: (customer.landmark || '').trim() },
     items: safeItems,
     subtotal: calculatedSubtotal,
     deliveryFee: fee,
@@ -51,4 +51,44 @@ export function transitionOrder(order, nextStatus, now = new Date(), note = '') 
     updatedAt: now.toISOString(),
     statusHistory: [...(order.statusHistory || []), { status: nextStatus, at: now.toISOString(), note: note || nextStatus }],
   };
+}
+
+
+/** Restrict public order tracking to fulfilment details; never expose customer PII. */
+export function sanitizePublicTrackingOrder(order) {
+  if (!order || typeof order !== 'object') return null;
+  const items = Array.isArray(order.items) ? order.items.map((item) => ({
+    id: String(item?.id || ''),
+    name: String(item?.name || 'Item'),
+    size: String(item?.size || ''),
+    price: Number.isFinite(Number(item?.price)) ? Number(item.price) : 0,
+    quantity: Math.max(1, Number.parseInt(item?.quantity, 10) || 1),
+    image: String(item?.image || ''),
+  })) : [];
+  const statusHistory = Array.isArray(order.statusHistory) ? order.statusHistory.map((entry) => ({
+    status: String(entry?.status || ''),
+    at: String(entry?.at || ''),
+  })) : [];
+  return {
+    trackingCode: String(order.trackingCode || ''),
+    status: String(order.status || 'Placed'),
+    statusHistory,
+    items,
+    subtotal: Number(order.subtotal) || 0,
+    deliveryFee: Number(order.deliveryFee) || 0,
+    total: Number(order.total) || 0,
+    paymentMethod: String(order.paymentMethod || 'COD'),
+    createdAt: String(order.createdAt || ''),
+    updatedAt: String(order.updatedAt || ''),
+  };
+}
+
+
+export function isPincodeServiceable(pincode, allowedPincodes = ['824101']) {
+  const normalized = String(pincode || '').replace(/\D/g, '');
+  if (!/^\d{6}$/.test(normalized)) return false;
+  const allowed = (Array.isArray(allowedPincodes) ? allowedPincodes : String(allowedPincodes || '').split(','))
+    .map((value) => String(value || '').replace(/\D/g, ''))
+    .filter((value) => /^\d{6}$/.test(value));
+  return allowed.includes(normalized);
 }
