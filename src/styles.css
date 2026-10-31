@@ -4061,3 +4061,67 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     padding-bottom: 20px;
   }
 }
+
+
+/* Product media gallery: show every saved image in the admin editor. */
+.admin-page .media-gallery-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+  width: 100%;
+  max-width: 760px;
+  margin: 14px 0 20px;
+}
+.admin-page .media-gallery-item {
+  min-width: 0;
+  padding: 8px;
+  border-radius: 16px;
+  background: var(--gpb-page, #e9edf4);
+  box-shadow: var(--gpb-neu-raised-small, 3px 3px 8px #c5ccd7, -3px -3px 8px #fff);
+}
+.admin-page .media-gallery-item img {
+  display: block;
+  width: 100%;
+  height: 150px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #fff;
+}
+.admin-page .media-gallery-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.admin-page .media-gallery-actions button {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 9px;
+  color: #26334a;
+  background: var(--gpb-page, #e9edf4);
+  box-shadow: var(--gpb-neu-raised-small, 3px 3px 8px #c5ccd7, -3px -3px 8px #fff);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.admin-page .media-gallery-actions button.is-main {
+  color: #fff;
+  background: #1e3a8a;
+}
+.admin-page .media-gallery-actions button.remove-photo { color: #a52828; }
+.catalog-load-more, .admin-product-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px auto 4px;
+  color: #58657a;
+  font-size: 13px;
+}
+.catalog-load-more .btn { display: inline-flex; align-items: center; gap: 8px; }
+.admin-product-pagination { justify-content: space-between; }
+.admin-product-pagination > div { display: flex; gap: 8px; }
+.admin-product-pagination button:disabled { opacity: .45; cursor: not-allowed; }
