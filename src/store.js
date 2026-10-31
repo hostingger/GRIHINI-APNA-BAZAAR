@@ -258,16 +258,67 @@ export function subscribeProducts(callback, onError = () => {}) {
   }
   let active = true;
   let lastSignature = '';
+  let refreshing = false;
+  let refreshQueued = false;
   const refresh = async () => {
-    const { data, error } = await supabase.from('products').select('id,payload,active').order('id');
-    if (error) { if (active) onError(error); return; }
-    // The database is the source of truth in live mode. Never inject demo/starter products.
-    const products = (data || []).map((row) => ({ ...normalizeProductRow(row), active: row.active === true && hasProductImage(normalizeProductRow(row)) }));
-    const next = products.sort((a,b) => String(a.name).localeCompare(String(b.name)));
-    const signature = JSON.stringify(next);
-    if (active && signature !== lastSignature) {
-      lastSignature = signature;
-      callback(next);
+    if (!active) return;
+    if (refreshing) { refreshQueued = true; return; }
+    refreshing = true;
+    try {
+      // Read the live catalogue in stable pages. A single Supabase/PostgREST response can
+      // be capped by the project's max_rows setting, which silently hides later products.
+      const pageSize = 500;
+      const { data: firstPage, error: firstError, count } = await supabase
+        .from('products')
+        .select('id,payload,active', { count: 'exact' })
+        .order('id')
+        .range(0, pageSize - 1);
+      if (firstError) { if (active) onError(firstError); return; }
+      const rows = [...(firstPage || [])];
+      const totalRows = Number.isFinite(count) ? count : null;
+      if (totalRows !== null) {
+        for (let from = pageSize; from < totalRows; from += pageSize) {
+          const { data: page, error } = await supabase
+            .from('products')
+            .select('id,payload,active')
+            .order('id')
+            .range(from, Math.min(from + pageSize - 1, totalRows - 1));
+          if (error) { if (active) onError(error); return; }
+          rows.push(...(page || []));
+          if (!page?.length) break;
+        }
+      } else {
+        // Fallback for APIs that do not return an exact count.
+        for (let from = pageSize; rows.length >= from; from += pageSize) {
+          const { data: page, error } = await supabase
+            .from('products')
+            .select('id,payload,active')
+            .order('id')
+            .range(from, from + pageSize - 1);
+          if (error) { if (active) onError(error); return; }
+          rows.push(...(page || []));
+          if (!page || page.length < pageSize) break;
+        }
+      }
+      // The database is the source of truth in live mode. Never inject demo/starter products.
+      const products = rows.map((row) => {
+        const normalized = normalizeProductRow(row);
+        return { ...normalized, active: row.active === true && hasProductImage(normalized) };
+      });
+      const next = products.sort((a,b) => String(a.name).localeCompare(String(b.name)));
+      const signature = JSON.stringify(next);
+      if (active && signature !== lastSignature) {
+        lastSignature = signature;
+        callback(next);
+      }
+    } catch (error) {
+      if (active) onError(error);
+    } finally {
+      refreshing = false;
+      if (active && refreshQueued) {
+        refreshQueued = false;
+        refresh();
+      }
     }
   };
   refresh();
