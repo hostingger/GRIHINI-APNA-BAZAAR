@@ -4125,3 +4125,59 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .admin-product-pagination { justify-content: space-between; }
 .admin-product-pagination > div { display: flex; gap: 8px; }
 .admin-product-pagination button:disabled { opacity: .45; cursor: not-allowed; }
+
+
+/* UX audit pass: resilient scroll targets and dialog positioning across short/mobile viewports. */
+:root { scroll-padding-top: 108px; }
+#shop, #store-info, .category-showcase { scroll-margin-top: 108px; }
+.overlay {
+  align-items: center;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.overlay > .modal,
+.overlay > .drawer {
+  margin-block: auto;
+  flex-shrink: 0;
+}
+.overlay > .modal {
+  scroll-margin-block: 12px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.overlay > .drawer {
+  max-height: calc(100dvh - max(24px, env(safe-area-inset-top)) - max(24px, env(safe-area-inset-bottom)));
+}
+.modal-head { position: relative; }
+.modal-head .icon-btn { flex-shrink: 0; }
+.product-detail-content { min-width: 0; }
+.checkout-form, .order-history-content { min-width: 0; }
+.admin-page .admin-tabs { scroll-behavior: smooth; scrollbar-width: thin; }
+.admin-page .admin-tab { flex: 0 0 auto; }
+@media (max-width: 760px) {
+  :root { scroll-padding-top: 86px; }
+  #shop, #store-info, .category-showcase { scroll-margin-top: 86px; }
+  .overlay { padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)); }
+  .overlay > .modal {
+    width: 100%;
+    max-width: 620px;
+    max-height: calc(100dvh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)));
+    padding: 18px;
+    border-radius: 20px;
+  }
+  .overlay > .drawer {
+    width: 100%;
+    max-width: 520px;
+    max-height: calc(100dvh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)));
+    margin-inline: auto;
+    border-radius: 20px;
+  }
+  .modal-head { gap: 10px; }
+}
+@media (max-height: 620px) {
+  .overlay { align-items: flex-start; }
+  .overlay > .modal, .overlay > .drawer { margin-block: 0 auto; }
+}
